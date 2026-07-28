@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Dark is the default theme, Midnight is the OLED variant.
+   Only the page background and card surfaces shift between themes. Accent and
+   type stay identical (Decisions Log 2).
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #12151a;
+  --surface: #1c2027;
+  --surface-raised: #242932;
+  --hairline: #2e343e;
+  --text: #f2f4f7;
+  --text-dim: #8a919c;
+  --accent: #7c5cff;
+
+  /* Font size setting. Small 15 / Medium 16 / Large 18, wired in phase 5. */
+  --app-font-size: 16px;
+}
+
+[data-theme="midnight"] {
+  --bg: #000000;
+  --surface: #0c0f13;
+  --surface-raised: #14181f;
+  --hairline: #23272f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-hairline: var(--hairline);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-accent: var(--accent);
+
+  --font-sans: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 20px;
+  --radius-inner: 12px;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  html {
+    font-size: var(--app-font-size);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Kills the native pull to refresh and rubber banding. Ours is custom
+     (phase 8), because this property removes the built in gesture. */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* App chrome is not selectable. Content is. */
+  .selectable,
+  p,
+  article {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Type roles. The contrast between hairline-thin display type and
+     medium-weight labels is the typographic signature, so these are the only
+     sanctioned weights. */
+
+  .type-wordmark {
+    font-weight: 200;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+  }
+
+  .type-temp {
+    font-weight: 200;
+    line-height: 0.9;
+  }
+
+  .type-heading {
+    font-weight: 500;
+  }
+
+  .type-label {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .type-numeric {
+    font-weight: 300;
+  }
+
+  /* Degree symbol rides at 45% of the numeral size, raised toward the cap
+     height rather than sitting on the baseline. */
+  .type-degree {
+    font-size: 0.45em;
+    line-height: 1;
+    vertical-align: baseline;
+    position: relative;
+    bottom: 0.62em;
+  }
+
+  /* Clears the Dynamic Island and the home indicator when installed. */
+  .app-shell {
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
