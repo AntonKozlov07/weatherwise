@@ -257,6 +257,10 @@ Settled. Do not revisit without being asked.
 15. **Vitest is the test runner.** This file required unit tests for the gradient engine without naming a framework. Vitest needs no Babel config and shares Vite's TS handling.
 16. **`Special_Text_Version.svg` is a complete lockup, not a gapped wordmark.** This file described it as having a 26px leading gap to pair with the monogram. The actual file already contains the monogram at x 0 to 24. It is used alone; pairing it would draw the mark twice.
 17. **Icon thickening covers the filled strokes too.** This file called for scaling the 2.5 and 3.5 stroke widths by 1.5x. The monogram's left diagonal and inner slash are filled paths roughly 3px wide, which read equally thin, so they get a 1.5 stroke in the same colour to widen them by the same ratio. Source in `public/brand/logo-mark-thick.svg`, regenerate icons with `npm run icons`.
+18. **The API is metric only.** Route handlers always return Celsius, km/h, mm, km, hPa, and the units toggle is a client-side formatting concern. Converting on the server would make a "live" toggle cost a round trip and break while offline.
+19. **Sunrise and sunset come from Open-Meteo, moon data from WeatherAPI.** WeatherAPI returns astro times as local wall clock strings ("06:06 AM") with no offset, which the gradient cannot anchor to without reconstructing the zone. Open-Meteo returns real epochs under `timeformat=unixtime`, verified against the live API. Moonrise, moonset, and phase stay on WeatherAPI because Open-Meteo does not carry them, and they are display strings only.
+20. **One `/api/forecast` endpoint merges both sources, `/api/search` is separate.** The sources stay split; the round trips do not. WeatherAPI failing propagates because nothing renders without current conditions. Open-Meteo failing degrades: 200 with `daily: []` and `sources.openMeteo.ok === false`, so a dead weekly forecast does not take down the home screen.
+21. **Vendor condition codes are not unified at the edge.** `ConditionRef` carries `system` alongside `code`, because WeatherAPI codes and WMO codes are different vocabularies. Phase 3 maps to gradient buckets, phase 4 to Meteocons. Collapsing them early would lose information both mappings need.
 
 ---
 
@@ -293,7 +297,7 @@ Stop for review at the end of each. Commit before moving on.
 7. Map page.
 8. Polish: offline handling, pull to refresh, accessibility pass, reduced motion.
 
-**Current phase: 1 complete locally, pending deploy and iPhone install check. Phase 2 not started.**
+**Current phase: 1 and 2 complete. Phase 2's WeatherAPI happy path is unverified against the live vendor because `WEATHER_API_KEY` is not set locally. Phase 3 in progress.**
 
 ---
 
