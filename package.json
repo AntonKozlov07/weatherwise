@@ -13,6 +13,7 @@
     "icons": "pwa-asset-generator public/brand/logo-mark-thick.svg public/icons -b \"#12151A\" -p \"22%\" --favicon --type png --opaque true --path-override \"/icons\""
   },
   "dependencies": {
+    "@bybas/weather-icons": "^2.0.0",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4"

@@ -263,6 +263,10 @@ Settled. Do not revisit without being asked.
 21. **Vendor condition codes are not unified at the edge.** `ConditionRef` carries `system` alongside `code`, because WeatherAPI codes and WMO codes are different vocabularies. Phase 3 maps to gradient buckets, phase 4 to Meteocons. Collapsing them early would lose information both mappings need.
 22. **Fog compresses lightness by 0.7 and unknown codes fall back to clear.** This file asked fog to "compress lightness delta between stops" without a strength, so both stops move 70% of the way to their mean, which flattens the gradient without erasing it. Condition codes outside the seven buckets get no modifier at all: a wrong tint reads as a bug, a missing tint reads as a clear day.
 23. **Gradient window boundaries are clamped to be non-decreasing.** At high latitudes `sunset - 150min` can fall before `sunrise + 45min`, which would produce a negative window span and an unbounded fraction. Squeezed windows collapse to zero length and are skipped. Saved locations make this reachable, so it is handled rather than assumed away.
+24. **The home screen uses a fixed default location until onboarding exists.** `lib/location.ts` points at Guelph. Onboarding step 3 replaces it in phase 5. Asking for the geolocation permission on first paint, with no onboarding to explain why, is the wrong first impression.
+25. **Static Meteocons, not the animated set.** The package ships both. The animation budget in this file is "gradient drift, route transitions, radar timeline. Nothing else", and 24 animated icons in a scroll rail is very much something else. It also sidesteps `prefers-reduced-motion`, which cannot pause SMIL inside an `<img>`. Swap `scripts/sync-weather-icons.mjs` to `production/fill/all` to reverse this.
+26. **Card headings keep the Figma's title case.** The type table calls for uppercase labels, and the Figma shows "2pm" and "Monday" in the hourly and daily cards. Those are values, not labels, so `.type-label` is reserved for actual captions. "2PM" reads as a column header rather than a time.
+27. **`/guide` and `/settings` exist from phase 4.** The hamburger is part of the main page structure, and a control that opens a menu of dead links is worse than no menu. Guide carries its final copy, which this file already specifies verbatim. Settings is a placeholder until phase 5.
 
 ---
 
@@ -299,7 +303,12 @@ Stop for review at the end of each. Commit before moving on.
 7. Map page.
 8. Polish: offline handling, pull to refresh, accessibility pass, reduced motion.
 
-**Current phase: 1 and 2 complete. Phase 2's WeatherAPI happy path is unverified against the live vendor because `WEATHER_API_KEY` is not set locally. Phase 3 in progress.**
+**Current phase: 1 through 4 complete. Phase 5 not started.**
+
+Outstanding against phases 1 to 4:
+
+- The WeatherAPI happy path has never run against the live vendor. `WEATHER_API_KEY` is not set locally, so every code path from `fetchForecast` through the home screen has only been exercised against fixtures. Set the key locally and in Vercel, then load the home screen before trusting phase 2.
+- Whether the free plan returns `alerts` is unconfirmed. `normalizeAlerts` treats an absent block as no alerts, so the banner simply will not appear if the plan excludes them.
 
 ---
 
