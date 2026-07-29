@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "pwa-asset-generator public/brand/logo-mark-thick.svg public/icons -b \"#1E2024\" -p \"22%\" --favicon --type png --opaque true --path-override \"/icons\"",
-    "icons:weather": "node scripts/sync-weather-icons.mjs"
+    "icons:weather": "node scripts/sync-weather-icons.mjs",
+    "verify:owm": "node scripts/verify-openweather.mjs"
   },
   "dependencies": {
     "@bybas/weather-icons": "^2.0.0",

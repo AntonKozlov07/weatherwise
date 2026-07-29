@@ -19,9 +19,23 @@ import {
  * All three take the same key. Geocoding and Air Pollution are free tier.
  */
 
-/** Version is a constant so a change is one edit, not a search. */
-const ONE_CALL_VERSION = "4.0";
-const ONE_CALL_URL = `https://api.openweathermap.org/data/${ONE_CALL_VERSION}/onecall`;
+/**
+ * One Call versions to try, in order of preference.
+ *
+ * Resolved at runtime rather than hardcoded, because the version an account can
+ * reach cannot be determined without calling it: OWM answers 401 at the gateway
+ * for every version, including ones that do not exist. Trying in order means
+ * setting the key is the only configuration step, with no code edit if the
+ * account lands on a different version (Decisions Log 44).
+ */
+const ONE_CALL_VERSIONS = ["4.0", "3.0"] as const;
+
+/**
+ * Cached per server instance after the first success, so the fallback costs one
+ * extra request once rather than on every forecast.
+ */
+let resolvedVersion: string | null = null;
+
 const GEOCODE_URL = "https://api.openweathermap.org/geo/1.0";
 const AIR_POLLUTION_URL = "https://api.openweathermap.org/data/2.5/air_pollution";
 
@@ -68,7 +82,8 @@ async function getJson(url: string, revalidate: number): Promise<unknown> {
   }
 }
 
-export async function fetchOneCall(
+async function tryOneCall(
+  version: string,
   latitude: number,
   longitude: number,
 ): Promise<RawOneCallResponse> {
@@ -83,19 +98,64 @@ export async function fetchOneCall(
   });
 
   const payload = await getJson(
-    `${ONE_CALL_URL}?${params.toString()}`,
+    `https://api.openweathermap.org/data/${version}/onecall?${params.toString()}`,
     REVALIDATE_SECONDS,
   );
 
   if (!isOneCallResponse(payload)) {
     throw new WeatherError(
       "upstream",
-      `Weather data came back in an unexpected shape for One Call ${ONE_CALL_VERSION}.`,
+      `Weather data came back in an unexpected shape for One Call ${version}.`,
       { source: "OpenWeatherMap" },
     );
   }
 
   return payload;
+}
+
+export async function fetchOneCall(
+  latitude: number,
+  longitude: number,
+): Promise<RawOneCallResponse> {
+  // Once a version has worked, stick to it. Only the first request pays for the
+  // fallback.
+  const candidates = resolvedVersion ? [resolvedVersion] : ONE_CALL_VERSIONS;
+
+  let lastError: unknown;
+
+  for (const version of candidates) {
+    try {
+      const payload = await tryOneCall(version, latitude, longitude);
+      resolvedVersion = version;
+      return payload;
+    } catch (error) {
+      lastError = error;
+
+      // A missing key is the same failure on every version, so stop rather than
+      // making the same doomed request again.
+      if (error instanceof WeatherError && error.kind === "config" && !error.httpStatus) {
+        throw error;
+      }
+    }
+  }
+
+  // Every version failed. A rejected key on all of them almost always means the
+  // account has no One Call subscription, so the message says so.
+  if (lastError instanceof WeatherError && lastError.kind === "config") {
+    throw lastError;
+  }
+
+  throw (
+    lastError ??
+    new WeatherError("upstream", "Could not reach the weather service.", {
+      source: "OpenWeatherMap",
+    })
+  );
+}
+
+/** Which One Call version is in use, once one has answered. For diagnostics. */
+export function activeOneCallVersion(): string | null {
+  return resolvedVersion;
 }
 
 /**
@@ -199,4 +259,4 @@ export async function fetchAirPollution(
   }
 }
 
-export { ONE_CALL_VERSION };
+export { ONE_CALL_VERSIONS };
