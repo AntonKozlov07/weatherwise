@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import {
   formatDayName,
   formatHour,
@@ -12,6 +14,7 @@ import type { GradientStops } from "@/lib/gradient";
 import type { DailyPoint, HourlyPoint, Wind } from "@/lib/weather/types";
 
 import { DropletIcon, RainChanceIcon, SunIcon, WindIcon } from "./metric-icons";
+import { ScrollHint } from "./scroll-hint";
 import type { RailMode } from "./segmented-control";
 
 type Props = {
@@ -156,6 +159,7 @@ export function ForecastRail({
       : daily.map((point) => toDailyCard(point, timeZone));
 
   const [pinned, ...rest] = cards;
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -193,7 +197,14 @@ export function ForecastRail({
             <CardBody card={pinned} units={units} />
           </div>
 
+          <ScrollHint
+            targetRef={scrollerRef}
+            direction="horizontal"
+            label="Scroll for more"
+          />
+
           <div
+            ref={scrollerRef}
             // Padded so the scrolling cards begin to the right of the pinned
             // card and pass beneath it as the padding scrolls away.
             //

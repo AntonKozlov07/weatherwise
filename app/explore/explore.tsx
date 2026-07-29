@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
+import { ScrollHint } from "@/components/scroll-hint";
 import { ErrorState } from "@/components/skeletons";
 import {
   CATEGORY_LABELS,
@@ -48,6 +49,7 @@ export function Explore() {
   const [category, setCategory] = useState<NewsCategory>("world");
   const [state, setState] = useState<State>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,7 +90,7 @@ export function Explore() {
   }, [category, reloadKey]);
 
   return (
-    <div className="screen">
+    <div className="screen relative">
       <header className="px-5 pt-6">
         <h1 className="type-heading text-2xl">Explore</h1>
       </header>
@@ -122,7 +124,13 @@ export function Explore() {
         </div>
       </div>
 
-      <div className="screen-scroll px-5 py-5">
+      <ScrollHint
+        targetRef={listRef}
+        direction="vertical"
+        label="Scroll for more"
+      />
+
+      <div ref={listRef} className="screen-scroll relative px-5 py-5">
         {state.status === "loading" && (
           <ul className="flex flex-col gap-3">
             {Array.from({ length: 5 }, (_, index) => (

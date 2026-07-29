@@ -51,7 +51,7 @@ export function SegmentedControl({ value, onChange }: Props) {
               aria-controls="forecast-rail"
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(option.value)}
-              className={`flex-1 pb-3 text-base transition-colors duration-200 ${
+              className={`ww-press flex-1 pb-3 text-base transition-colors duration-200 ${
                 selected ? "text-text" : "text-text-dim"
               }`}
             >

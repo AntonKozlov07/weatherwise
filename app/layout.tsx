@@ -3,6 +3,7 @@ import { Albert_Sans } from "next/font/google";
 
 import { PreferencesProvider } from "@/components/preferences-provider";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
+import { Splash } from "@/components/splash";
 import { ThemeScript } from "@/components/theme-script";
 import { appleStartupImages } from "@/lib/pwa/splash-screens";
 import "./globals.css";
@@ -65,6 +66,9 @@ export default function RootLayout({
       <body>
         <PreferencesProvider>
           <div className="app-shell">{children}</div>
+          {/* Outside the shell so it overlays the whole viewport, and in the
+              layout so internal navigation never replays it. */}
+          <Splash />
         </PreferencesProvider>
         <ServiceWorkerRegistrar />
       </body>

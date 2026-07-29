@@ -326,6 +326,89 @@
   }
 }
 
+/* ---- Splash ----
+   Clouds part to reveal the wordmark. Transform and opacity only, so the whole
+   sequence runs on the compositor and never blocks the app booting behind it. */
+
+@keyframes ww-cloud-left {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate3d(-72%, -6%, 0) scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes ww-cloud-right {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate3d(72%, 6%, 0) scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes ww-logo-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  45% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ww-splash-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---- Scroll affordance ---- */
+
+@keyframes ww-nudge-x {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(5px, 0, 0);
+  }
+}
+
+@keyframes ww-nudge-y {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 5px, 0);
+  }
+}
+
+/* ---- Route transition ----
+   Applied by app/template.tsx, which React remounts on every navigation. */
+
+@keyframes ww-route-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @layer components {
   /* Content settling in after data lands. `--rise-delay` staggers siblings. */
   .ww-rise {
@@ -356,6 +439,36 @@
 
   .ww-press:active {
     transform: scale(0.96);
+  }
+
+  .ww-cloud-left {
+    animation: ww-cloud-left 1500ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  .ww-cloud-right {
+    animation: ww-cloud-right 1500ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  .ww-logo-reveal {
+    animation: ww-logo-reveal 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .ww-splash-out {
+    animation: ww-splash-out 320ms ease-out both;
+  }
+
+  /* Nudges rather than bounces: enough to read as "there is more this way",
+     not enough to pull the eye off the content it is pointing at. */
+  .ww-nudge-x {
+    animation: ww-nudge-x 1600ms ease-in-out infinite;
+  }
+
+  .ww-nudge-y {
+    animation: ww-nudge-y 1600ms ease-in-out infinite;
+  }
+
+  .ww-route-in {
+    animation: ww-route-in 220ms ease-out both;
   }
 
   /* Skeletons read as loading rather than as empty containers. */
