@@ -9,23 +9,26 @@
 :root {
   color-scheme: dark;
 
-  --bg: #12151a;
-  --surface: #1c2027;
-  --surface-raised: #242932;
-  --hairline: #2e343e;
+  /* Surfaces are lifted and de-blued against the original token list to match
+     the Figma render, which sits on neutral greys rather than the near-black
+     blues those values produce (Decisions Log 35). */
+  --bg: #1e2024;
+  --surface: #2b2d31;
+  --surface-raised: #313338;
+  --hairline: #3a3d43;
   --text: #f2f4f7;
-  --text-dim: #8a919c;
+  --text-dim: #9ba1a9;
   --accent: #7c5cff;
 
-  /* Font size setting. Small 15 / Medium 16 / Large 18, wired in phase 5. */
+  /* Font size setting. Small 15 / Medium 16 / Large 18. */
   --app-font-size: 16px;
 }
 
 [data-theme="midnight"] {
   --bg: #000000;
-  --surface: #0c0f13;
-  --surface-raised: #14181f;
-  --hairline: #23272f;
+  --surface: #15171a;
+  --surface-raised: #1d1f23;
+  --hairline: #26292e;
 }
 
 @theme inline {
@@ -59,6 +62,21 @@
 
   body {
     background-color: var(--bg);
+    /* Two very wide, very low-contrast washes. They keep a full screen of flat
+       dark from reading as an empty div, and are cheap because they are painted
+       once on a fixed layer rather than per card. */
+    background-image:
+      radial-gradient(
+        130% 70% at 50% -15%,
+        color-mix(in oklab, var(--accent) 12%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        90% 55% at 105% 0%,
+        color-mix(in oklab, var(--text) 5%, transparent),
+        transparent 58%
+      );
+    background-attachment: fixed;
     color: var(--text);
     font-family: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
     /* ExtraLight is the base weight, not Regular (Decisions Log 28). */
@@ -136,6 +154,61 @@
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
+  }
+
+  /* Installed, the page paints under the status bar because the status bar
+     style is black-translucent. A floor is set rather than trusting the inset
+     alone: when Safari reports 0 there, the header lands on the Dynamic Island. */
+  @media (display-mode: standalone) {
+    .app-shell {
+      padding-top: max(env(safe-area-inset-top), 3rem);
+    }
+  }
+
+  /* ---- Surfaces ----
+     Cards are lit from above with a one-stop gradient and a hairline top
+     highlight, then seated with a wide, very soft shadow. The original spec
+     banned shadows outright; this is the "floating" read Anton asked for, done
+     with a shadow too diffuse to see as one (Decisions Log 36). */
+
+  .card {
+    background-image: linear-gradient(
+      175deg,
+      color-mix(in oklab, var(--surface) 90%, var(--text)) 0%,
+      var(--surface) 58%
+    );
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--text) 9%, transparent),
+      0 20px 44px -28px rgb(0 0 0 / 0.9);
+  }
+
+  .card-raised {
+    background-image: linear-gradient(
+      175deg,
+      color-mix(in oklab, var(--surface-raised) 90%, var(--text)) 0%,
+      var(--surface-raised) 58%
+    );
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--text) 8%, transparent),
+      0 16px 34px -26px rgb(0 0 0 / 0.85);
+  }
+
+  /* The nav floats over the page rather than sitting in it. */
+  .card-floating {
+    background-color: color-mix(in oklab, var(--surface) 82%, transparent);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--text) 10%, transparent),
+      0 18px 40px -22px rgb(0 0 0 / 0.95);
+  }
+
+  /* The pinned rail card. Everything else in the rail scrolls beneath it, so it
+     needs an opaque edge and a shadow that reads as depth at the seam. */
+  .card-pinned {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--text) 10%, transparent),
+      8px 0 20px -8px rgb(0 0 0 / 0.75);
   }
 }
 

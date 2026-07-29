@@ -1,4 +1,4 @@
-﻿# WeatherWise
+# WeatherWise
 
 Weather PWA, installed to an iPhone home screen via Safari. Port of an Android app originally written in Kotlin with XML layouts. No App Store submission, no Mac, no native code.
 
@@ -273,6 +273,12 @@ Settled. Do not revisit without being asked.
 31. **Rail cards carry the full Figma detail set and size in vw.** Day or hour, temperature with high/low, precipitation chance, then condition, humidity, and wind rows. Width is `min(11.5rem, 52vw)`, so two sit comfortably with a third peeking on any phone. The earlier fixed 88px card was drawn for 390px and left a 15 Pro Max looking sparse.
 32. **Preferences are an external store, not React context.** `lib/preferences-store.ts` is read through `useSyncExternalStore`. Reading localStorage in an effect and calling setState cascades a render on every mount and trips React's own lint rules; this also picks up cross-tab changes for free. The onboarding gate reads the store directly rather than the rendered value, because the first commit after hydration can still hold the server snapshot.
 33. **The news provider is assumed, not identified.** This file requires one test request to confirm the provider before writing the Explore page. `NEWS_API_KEY` is not set, so that request has not been made. `lib/news/client.ts` is written against thenewsapi.com, and `/api/news/identify` (development only) settles it in one call once the key exists. If the answer is newsapi.org, the module gets replaced rather than patched.
+34. **Weather glyphs use the Meteocons line set, not the fill set.** The Figma draws its weather icons as line art; the fill set's solid three-dimensional artwork reads as a different design language beside it. Still Meteocons, still static (Decisions Log 25).
+35. **Surfaces are lifted and de-blued from the token list.** The tokens above produce near-black blues; the Figma render sits on neutral greys. Matching the Figma, which this file names the source of truth for visual style: `--bg #1E2024`, `--surface #2B2D31`, `--surface-raised #313338`, `--hairline #3A3D43`, `--text-dim #9BA1A9`. Accent and primary text are unchanged. App icons, splash screens, `theme_color`, and `background_color` were regenerated to match.
+36. **Cards are lit and seated, against the no-shadow rule.** The original spec said separation comes from background contrast only. Anton asked for a floating, premium read, so cards carry a one-stop top-lit gradient, a hairline top highlight, and a shadow wide enough not to register as one. The bottom nav also floats on a blur.
+37. **The pinned rail card sits outside the scroller.** `position: sticky` does not hold for a flex item inside a horizontally scrolling container, verified with an isolated probe in the target browser. The first card is absolutely positioned above the rail, and the rail is padded by exactly one card width plus the gap, so the remaining cards begin beside it and pass underneath as it scrolls.
+38. **The `Hourly | Weekly` control is an underline, not a pill.** A filled pill is a second heavy surface stacked directly above the cards, which is what removing the Figma's arrow strip was meant to avoid.
+
 
 ---
 
@@ -309,9 +315,11 @@ Stop for review at the end of each. Commit before moving on.
 7. Map page.
 8. Polish: offline handling, pull to refresh, accessibility pass, reduced motion.
 
-**Current phase: 1 through 6 complete. Phase 7 (map) and phase 8 (polish) remain; pull to refresh has already been taken out of phase 8.**
+**Current phase: all eight complete.**
 
 Outstanding:
+
+- The map has not been opened against real tiles. `OPENWEATHER_API_KEY` is unset, so the wind layer returns a configuration error; the radar layer and basemap need a browser with the built app to confirm.
 
 - The WeatherAPI happy path has never run against the live vendor. `WEATHER_API_KEY` is not set locally, so every code path from `fetchForecast` through the home screen has only been exercised against fixtures. Set the key locally and in Vercel, then load the home screen before trusting phase 2.
 - Whether the free plan returns `alerts` is unconfirmed. `normalizeAlerts` treats an absent block as no alerts, so the banner simply will not appear if the plan excludes them.

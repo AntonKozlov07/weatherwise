@@ -49,7 +49,7 @@ export function NowCard({
   return (
     <section
       aria-label="Current conditions"
-      className="mx-5 rounded-card bg-surface p-5"
+      className="card mx-5 rounded-card p-5"
     >
       <p className="text-base text-text-dim">
         {formatLongDate(current.observedAt, timeZone)}

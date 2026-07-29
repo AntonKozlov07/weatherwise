@@ -8,8 +8,23 @@ import type { ForecastBundle } from "@/lib/weather/types";
 
 export type ForecastState =
   | { status: "loading" }
-  | { status: "ready"; bundle: ForecastBundle; refreshing: boolean }
+  | {
+      status: "ready";
+      bundle: ForecastBundle;
+      refreshing: boolean;
+      /**
+       * When set, this payload came from the service worker's cache rather than
+       * the network, and is that many milliseconds old.
+       */
+      staleSince: number | null;
+    }
   | { status: "error"; message: string };
+
+/**
+ * The service worker stamps cached forecasts with the time it stored them, so
+ * a served-from-cache response can be told apart from a live one.
+ */
+const CACHED_AT_HEADER = "x-weatherwise-cached-at";
 
 async function readError(response: Response): Promise<string> {
   try {
@@ -33,7 +48,12 @@ export function useForecast({ latitude, longitude }: Coordinates) {
 
       setState(
         existing
-          ? { status: "ready", bundle: existing, refreshing: true }
+          ? {
+              status: "ready",
+              bundle: existing,
+              refreshing: true,
+              staleSince: null,
+            }
           : { status: "loading" },
       );
 
@@ -48,9 +68,16 @@ export function useForecast({ latitude, longitude }: Coordinates) {
           return;
         }
 
+        const cachedAt = response.headers.get(CACHED_AT_HEADER);
         const bundle = (await response.json()) as ForecastBundle;
+
         bundleRef.current = bundle;
-        setState({ status: "ready", bundle, refreshing: false });
+        setState({
+          status: "ready",
+          bundle,
+          refreshing: false,
+          staleSince: cachedAt ? Number(cachedAt) : null,
+        });
       } catch (error) {
         if (signal?.aborted) return;
 

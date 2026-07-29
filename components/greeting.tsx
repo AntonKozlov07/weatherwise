@@ -62,11 +62,14 @@ export function Greeting({ name, condition, astronomy, timeZone }: Props) {
 
   const { sunrise, sunset } = sunTimes(astronomy, now);
   const gradient = getGreetingGradient(now, sunrise, sunset, condition.code);
-  const text = `${salutation(now, timeZone)}${name ? ` ${name}` : ""}!`;
+
+  // Trimmed, or a name stored with trailing whitespace renders "Anton !".
+  const trimmed = name?.trim();
+  const text = `${salutation(now, timeZone)}${trimmed ? ` ${trimmed}` : ""}!`;
 
   return (
     <h1
-      className="type-heading text-[2rem] leading-tight"
+      className="type-heading text-[1.75rem] leading-tight"
       style={{
         backgroundImage: `linear-gradient(90deg, ${gradient.from}, ${gradient.to})`,
         backgroundClip: "text",

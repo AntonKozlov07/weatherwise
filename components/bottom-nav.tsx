@@ -29,7 +29,7 @@ export function BottomNav() {
       aria-label="Sections"
       className="sticky bottom-0 mt-auto px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3"
     >
-      <ul className="flex items-center justify-around rounded-card bg-surface py-4">
+      <ul className="card-floating flex items-center justify-around rounded-card py-4">
         {ITEMS.map((item) => {
           const active = pathname === item.href;
 
@@ -38,7 +38,7 @@ export function BottomNav() {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center justify-center rounded-inner p-2 ${
+                className={`ww-press flex items-center justify-center rounded-inner p-2 transition-colors ${
                   active ? "text-text" : "text-text-dim"
                 }`}
               >

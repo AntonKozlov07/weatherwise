@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { ForecastRail } from "@/components/forecast-rail";
 import { Greeting } from "@/components/greeting";
 import { NowCard } from "@/components/now-card";
+import { OfflineBanner } from "@/components/offline-banner";
 import { usePreferences } from "@/components/preferences-provider";
 import { readPreferences } from "@/lib/preferences-store";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -62,6 +63,10 @@ export function HomeScreen() {
 
           {state.status === "ready" && (
             <div className="flex flex-1 flex-col gap-6">
+              {state.staleSince !== null && (
+                <OfflineBanner staleSince={state.staleSince} />
+              )}
+
               {preferences.alertBanners && state.bundle.alerts.length > 0 && (
                 <AlertBanner alerts={state.bundle.alerts} />
               )}

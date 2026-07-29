@@ -21,9 +21,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The line set, not the fill set: the Figma draws its weather glyphs as line
+// art, and the fill set's solid three-dimensional artwork reads as a different
+// design language next to it (Decisions Log 34).
 const source = path.join(
   root,
-  "node_modules/@bybas/weather-icons/design/fill/export",
+  "node_modules/@bybas/weather-icons/design/line/export",
 );
 const destination = path.join(root, "public/weather-icons");
 

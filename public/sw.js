@@ -16,8 +16,9 @@
  * "Offline, showing last update" banner land in phase 8.
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `weatherwise-shell-${CACHE_VERSION}`;
+const DATA_CACHE = `weatherwise-data-${CACHE_VERSION}`;
 
 /** Offline fallback document plus the assets needed to render it. */
 const SHELL_ASSETS = [
@@ -52,7 +53,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== SHELL_CACHE)
+            .filter((key) => key !== SHELL_CACHE && key !== DATA_CACHE)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -73,6 +74,47 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // The last successful forecast, kept so the app has something to show with no
+  // network. The response is stamped with the time it was stored, which is what
+  // the "Offline, showing last update" banner reads.
+  if (url.pathname === "/api/forecast") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+
+            caches.open(DATA_CACHE).then(async (cache) => {
+              const body = await copy.blob();
+              const headers = new Headers(copy.headers);
+              headers.set("x-weatherwise-cached-at", String(Date.now()));
+              cache.put(request, new Response(body, { headers }));
+            });
+          }
+
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request, { cacheName: DATA_CACHE });
+
+          if (cached) return cached;
+
+          // No network and nothing stored. A structured error keeps the client
+          // on its normal error path rather than a fetch rejection.
+          return Response.json(
+            {
+              error: {
+                kind: "upstream",
+                message: "No connection, and no saved forecast yet.",
+              },
+            },
+            { status: 503 },
+          );
+        }),
+    );
+    return;
+  }
 
   // Navigations: network first, fall back to the cached shell when offline.
   if (request.mode === "navigate") {
