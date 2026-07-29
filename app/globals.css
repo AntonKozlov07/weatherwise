@@ -61,7 +61,8 @@
     background-color: var(--bg);
     color: var(--text);
     font-family: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
-    font-weight: 400;
+    /* ExtraLight is the base weight, not Regular (Decisions Log 28). */
+    font-weight: 200;
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none;
     user-select: none;
@@ -82,9 +83,11 @@
 }
 
 @layer components {
-  /* Type roles. The contrast between hairline-thin display type and
-     medium-weight labels is the typographic signature, so these are the only
-     sanctioned weights. */
+  /* Type roles.
+     The scale runs on Thin (100) and ExtraLight (200) throughout, which is the
+     weight pairing this design is drawn in (Decisions Log 28). The only place
+     that climbs is the smallest uppercase captions: below about 12px, 100 and
+     200 lose their stems on a phone screen and stop being readable. */
 
   .type-wordmark {
     font-weight: 200;
@@ -93,23 +96,27 @@
   }
 
   .type-temp {
-    font-weight: 200;
+    font-weight: 100;
     line-height: 0.9;
   }
 
   .type-heading {
-    font-weight: 500;
+    font-weight: 200;
+  }
+
+  .type-body {
+    font-weight: 200;
   }
 
   .type-label {
-    font-weight: 500;
+    font-weight: 300;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-dim);
   }
 
   .type-numeric {
-    font-weight: 300;
+    font-weight: 100;
   }
 
   /* Degree symbol rides at 45% of the numeral size, raised toward the cap
@@ -129,6 +136,102 @@
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion.
+
+   Broader than the original animation budget, by request (Decisions Log 29).
+   Everything here is short and eased, and none of it survives reduced motion:
+   the block at the bottom of this file kills all of it.
+
+   Transforms and opacity only, so nothing triggers layout during an animation.
+--------------------------------------------------------------------------- */
+
+@keyframes ww-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ww-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ww-slide-in {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ww-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ww-shimmer {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@layer components {
+  /* Content settling in after data lands. `--rise-delay` staggers siblings. */
+  .ww-rise {
+    animation: ww-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  .ww-fade {
+    animation: ww-fade 300ms ease-out both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  .ww-slide-in {
+    animation: ww-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .ww-spin {
+    animation: ww-spin 900ms linear infinite;
+  }
+
+  /* Presses feel physical without a hover state to lean on. */
+  .ww-press {
+    transition:
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 160ms ease-out,
+      color 160ms ease-out;
+  }
+
+  .ww-press:active {
+    transform: scale(0.96);
+  }
+
+  /* Skeletons read as loading rather than as empty containers. */
+  .ww-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      var(--surface-raised) 0%,
+      color-mix(in oklab, var(--surface-raised) 82%, var(--text)) 50%,
+      var(--surface-raised) 100%
+    );
+    background-size: 200% 100%;
+    animation: ww-shimmer 1.6s ease-in-out infinite;
   }
 }
 

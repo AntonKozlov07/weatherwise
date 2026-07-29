@@ -7,7 +7,7 @@
  */
 
 function Block({ className }: { className: string }) {
-  return <div className={`rounded-inner bg-surface-raised ${className}`} />;
+  return <div className={`ww-shimmer rounded-inner ${className}`} />;
 }
 
 export function HomeSkeleton() {

@@ -17,6 +17,7 @@ const DAILY_FIELDS = [
   "wind_speed_10m_max",
   "wind_gusts_10m_max",
   "wind_direction_10m_dominant",
+  "relative_humidity_2m_mean",
   "uv_index_max",
   "sunrise",
   "sunset",

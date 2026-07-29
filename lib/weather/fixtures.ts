@@ -138,6 +138,7 @@ export function openMeteoFixture(
       wind_speed_10m_max: time.map(() => 21.6),
       wind_gusts_10m_max: time.map(() => 41.4),
       wind_direction_10m_dominant: time.map(() => 333),
+      relative_humidity_2m_mean: time.map(() => 65),
       uv_index_max: time.map(() => 7.1),
       // 06:06:30 and 20:48:23 local on the first day.
       sunrise: time.map((day) => day + 6 * HOUR + 390),

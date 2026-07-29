@@ -17,6 +17,7 @@ export type RawDaily = {
   wind_speed_10m_max: (number | null)[];
   wind_gusts_10m_max: (number | null)[];
   wind_direction_10m_dominant: (number | null)[];
+  relative_humidity_2m_mean: (number | null)[];
   uv_index_max: (number | null)[];
   sunrise: (number | null)[];
   sunset: (number | null)[];

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Albert_Sans } from "next/font/google";
 
+import { PreferencesProvider } from "@/components/preferences-provider";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
+import { ThemeScript } from "@/components/theme-script";
 import { appleStartupImages } from "@/lib/pwa/splash-screens";
 import "./globals.css";
 
@@ -58,9 +60,12 @@ export default function RootLayout({
             still keys standalone launch and the status bar style off the
             Apple-prefixed name, so it is set by hand. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <ThemeScript />
       </head>
       <body>
-        <div className="app-shell">{children}</div>
+        <PreferencesProvider>
+          <div className="app-shell">{children}</div>
+        </PreferencesProvider>
         <ServiceWorkerRegistrar />
       </body>
     </html>

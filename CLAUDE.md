@@ -1,4 +1,4 @@
-# WeatherWise
+﻿# WeatherWise
 
 Weather PWA, installed to an iPhone home screen via Safari. Port of an Android app originally written in Kotlin with XML layouts. No App Store submission, no Mac, no native code.
 
@@ -267,6 +267,12 @@ Settled. Do not revisit without being asked.
 25. **Static Meteocons, not the animated set.** The package ships both. The animation budget in this file is "gradient drift, route transitions, radar timeline. Nothing else", and 24 animated icons in a scroll rail is very much something else. It also sidesteps `prefers-reduced-motion`, which cannot pause SMIL inside an `<img>`. Swap `scripts/sync-weather-icons.mjs` to `production/fill/all` to reverse this.
 26. **Card headings keep the Figma's title case.** The type table calls for uppercase labels, and the Figma shows "2pm" and "Monday" in the hourly and daily cards. Those are values, not labels, so `.type-label` is reserved for actual captions. "2PM" reads as a column header rather than a time.
 27. **`/guide` and `/settings` exist from phase 4.** The hamburger is part of the main page structure, and a control that opens a menu of dead links is worse than no menu. Guide carries its final copy, which this file already specifies verbatim. Settings is a placeholder until phase 5.
+28. **The type scale runs on Thin and ExtraLight.** Anton's instruction, overriding the weight column in the type table above: body and headings are 200, display numerals and the temperature are 100. The one exception is the smallest uppercase captions, which stay at 300 because below about 12px the 100 and 200 weights lose their stems and stop being readable on a phone.
+29. **The animation budget is widened.** Anton asked for motion beyond the original "gradient drift, route transitions, radar timeline. Nothing else." Added: staggered entrances for cards and sections, press feedback on controls, a shimmer on skeletons, and the pull to refresh spinner. All of it is transform and opacity only, and all of it is removed under `prefers-reduced-motion`.
+30. **Pull to refresh landed in this batch, not phase 8.** Requested early because there was no way to refresh in the installed app. It is custom, as required: `overscroll-behavior: none` removes the native gesture.
+31. **Rail cards carry the full Figma detail set and size in vw.** Day or hour, temperature with high/low, precipitation chance, then condition, humidity, and wind rows. Width is `min(11.5rem, 52vw)`, so two sit comfortably with a third peeking on any phone. The earlier fixed 88px card was drawn for 390px and left a 15 Pro Max looking sparse.
+32. **Preferences are an external store, not React context.** `lib/preferences-store.ts` is read through `useSyncExternalStore`. Reading localStorage in an effect and calling setState cascades a render on every mount and trips React's own lint rules; this also picks up cross-tab changes for free. The onboarding gate reads the store directly rather than the rendered value, because the first commit after hydration can still hold the server snapshot.
+33. **The news provider is assumed, not identified.** This file requires one test request to confirm the provider before writing the Explore page. `NEWS_API_KEY` is not set, so that request has not been made. `lib/news/client.ts` is written against thenewsapi.com, and `/api/news/identify` (development only) settles it in one call once the key exists. If the answer is newsapi.org, the module gets replaced rather than patched.
 
 ---
 
@@ -303,12 +309,14 @@ Stop for review at the end of each. Commit before moving on.
 7. Map page.
 8. Polish: offline handling, pull to refresh, accessibility pass, reduced motion.
 
-**Current phase: 1 through 4 complete. Phase 5 not started.**
+**Current phase: 1 through 6 complete. Phase 7 (map) and phase 8 (polish) remain; pull to refresh has already been taken out of phase 8.**
 
-Outstanding against phases 1 to 4:
+Outstanding:
 
 - The WeatherAPI happy path has never run against the live vendor. `WEATHER_API_KEY` is not set locally, so every code path from `fetchForecast` through the home screen has only been exercised against fixtures. Set the key locally and in Vercel, then load the home screen before trusting phase 2.
 - Whether the free plan returns `alerts` is unconfirmed. `normalizeAlerts` treats an absent block as no alerts, so the banner simply will not appear if the plan excludes them.
+- The news provider is unconfirmed (Decisions Log 33). Nothing on the Explore page has run against a real response. Set `NEWS_API_KEY`, hit `/api/news/identify` in development, and record the answer here.
+- Pull to refresh has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone, to confirm it does not fight the page scroll.
 
 ---
 
@@ -321,3 +329,4 @@ Outstanding against phases 1 to 4:
 - Add screens, tabs, or features not specified here
 - Add animation beyond the budget above
 - Use `localStorage` for anything except preferences and cached forecast payloads
+

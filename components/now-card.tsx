@@ -8,6 +8,7 @@ import {
 } from "@/lib/format";
 import type { CurrentConditions } from "@/lib/weather/types";
 
+import { DropletIcon, RainChanceIcon, WindIcon } from "./metric-icons";
 import { WeatherIcon } from "./weather-icon";
 
 type Props = {
@@ -64,22 +65,8 @@ export function NowCard({
           <Row icon={<WeatherIcon condition={current.condition} size={22} />}>
             {current.condition.text}
           </Row>
-          <Row
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
-                <path d="M12 3.5 6.8 11a6 6 0 1 0 10.4 0L12 3.5Z" />
-              </svg>
-            }
-          >
-            {humidityLabel(current.humidity)}
-          </Row>
-          <Row
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <path d="M3 9h11a3 3 0 1 0-3-3M3 14h14a3 3 0 1 1-3 3M3 11.5h7" />
-              </svg>
-            }
-          >
+          <Row icon={<DropletIcon />}>{humidityLabel(current.humidity)}</Row>
+          <Row icon={<WindIcon />}>
             {formatWind(current.wind.speed, units)}
           </Row>
         </div>
@@ -95,10 +82,7 @@ export function NowCard({
         </p>
 
         <p className="flex items-center gap-2 text-sm text-text-dim">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-            <path d="M7 16.5a4.5 4.5 0 0 1-.6-8.96 5.5 5.5 0 0 1 10.7-1.02A4 4 0 0 1 17.5 16.5H7Z" />
-            <path d="M9 19.5 8 21m4-1.5-1 1.5m4-1.5-1 1.5" />
-          </svg>
+          <RainChanceIcon size={20} />
           <span>
             {Math.round(precipitationChance)}% Chance of{" "}
             <span className="text-text">Rain</span>

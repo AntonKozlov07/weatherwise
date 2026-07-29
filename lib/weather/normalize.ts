@@ -230,6 +230,7 @@ export function normalizeDaily(raw: RawDailyResponse): DailyPoint[] {
       low: daily.temperature_2m_min[index] ?? 0,
       precipitationChance: daily.precipitation_probability_max[index] ?? 0,
       precipitation: daily.precipitation_sum[index] ?? 0,
+      humidity: daily.relative_humidity_2m_mean[index] ?? 0,
       uvIndex: daily.uv_index_max[index] ?? 0,
       wind: normalizeWind(
         daily.wind_speed_10m_max[index] ?? 0,

@@ -96,6 +96,8 @@ export type DailyPoint = {
   precipitationChance: number;
   /** mm */
   precipitation: number;
+  /** Percent, daily mean. */
+  humidity: number;
   uvIndex: number;
   wind: Wind;
 };
