@@ -50,11 +50,17 @@ export function AppHeader({ locationName }: { locationName?: string }) {
           </svg>
         </button>
 
+        {/* Centred on the screen, not on the space left of the hamburger:
+            the button is absolutely positioned so it takes the wordmark out of
+            the flow calculation entirely. */}
         <Image
           src="/brand/WeatherWise_Text_Logo.svg"
           alt="WeatherWise"
-          width={232}
-          height={19}
+          width={264}
+          height={22}
+          // Capped in rem and floored in vw so it stays clear of the hamburger
+          // on a narrower phone instead of crowding it.
+          className="h-auto w-[min(16.5rem,62vw)]"
           priority
           unoptimized
         />

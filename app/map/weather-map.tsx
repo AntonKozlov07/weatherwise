@@ -76,6 +76,8 @@ export function WeatherMap() {
   const mapRef = useRef<InstanceType<typeof MapLibreMap> | null>(null);
   const [ready, setReady] = useState(false);
 
+  const [styleParsed, setStyleParsed] = useState(false);
+  const [styleError, setStyleError] = useState<string | null>(null);
   const [layer, setLayer] = useState<Layer>("precipitation");
   const [opacity, setOpacity] = useState(0.7);
   const [timeline, setTimeline] = useState<RadarTimeline | null>(null);
@@ -95,7 +97,35 @@ export function WeatherMap() {
     });
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-    map.on("load", () => setReady(true));
+
+    // Two separate notions of "ready", because they answer different questions.
+    //
+    // `styleParsed` only says the style JSON arrived, which is what the loading
+    // overlay cares about. `ready` says the map can take layers, which needs the
+    // sources settled. Tying the overlay to the stricter one left it spinning
+    // forever whenever the map had not painted a frame.
+    map.on("styledata", () => setStyleParsed(true));
+    map.on("load", () => {
+      setStyleParsed(true);
+      setReady(true);
+    });
+    map.on("idle", () => setReady(true));
+
+    // Nobody should be left watching a spinner with no idea whether it is
+    // working. If the style has not arrived by now, something is wrong.
+    const timeout = setTimeout(() => {
+      setStyleError((current) => current ?? "The map is taking too long to load.");
+    }, 15_000);
+
+    // Without this a failed basemap is indistinguishable from a slow one: both
+    // are a blank rectangle. Tile-level failures are ignored, since a single
+    // missing tile is not worth taking the screen down for.
+    map.on("error", (event) => {
+      const failed = (event as { sourceId?: string }).sourceId;
+      if (failed) return;
+      setStyleError("The map could not load. Check your connection.");
+    });
+
     mapRef.current = map;
 
     // The container is sized by flex layout, which can settle after the map is
@@ -104,9 +134,11 @@ export function WeatherMap() {
     observer.observe(containerRef.current);
 
     return () => {
+      clearTimeout(timeout);
       observer.disconnect();
       map.remove();
       mapRef.current = null;
+      setStyleParsed(false);
       // Reset, or the next map (React mounts effects twice in development)
       // inherits a true `ready` and the layer effects run against a style that
       // has not loaded yet.
@@ -236,6 +268,44 @@ export function WeatherMap() {
             container collapsed to zero height (Decisions Log 40). */}
         <div ref={containerRef} className="h-full w-full" />
 
+        {/*
+          A blank rectangle is what a loading map, a broken map, and a map with
+          nothing to draw all look like. This tells them apart.
+        */}
+        {!styleParsed && !styleError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg">
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              className="ww-spin text-accent"
+              aria-hidden="true"
+            >
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+            </svg>
+            <p role="status" className="text-sm text-text-dim">
+              Loading map
+            </p>
+          </div>
+        )}
+
+        {styleError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-bg px-8 text-center">
+            <p className="text-base">{styleError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="ww-press type-label rounded-pill border border-hairline px-5 py-2 text-xs"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4">
           <div className="pointer-events-auto card-floating flex gap-1 self-start rounded-pill p-1">
             {(["precipitation", "wind", "off"] as const).map((option) => (
@@ -276,6 +346,15 @@ export function WeatherMap() {
         )}
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 p-4">
+          {styleParsed && layer === "precipitation" && !timeline && !error && (
+            <p
+              role="status"
+              className="card-floating self-start rounded-pill px-4 py-2 text-sm text-text-dim"
+            >
+              Loading radar
+            </p>
+          )}
+
           {layer === "precipitation" && timeline && frame && (
             <div className="pointer-events-auto card-floating flex items-center gap-3 rounded-card px-4 py-3">
               <button
