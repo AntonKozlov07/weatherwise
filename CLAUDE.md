@@ -278,6 +278,9 @@ Settled. Do not revisit without being asked.
 36. **Cards are lit and seated, against the no-shadow rule.** The original spec said separation comes from background contrast only. Anton asked for a floating, premium read, so cards carry a one-stop top-lit gradient, a hairline top highlight, and a shadow wide enough not to register as one. The bottom nav also floats on a blur.
 37. **The pinned rail card sits outside the scroller.** `position: sticky` does not hold for a flex item inside a horizontally scrolling container, verified with an isolated probe in the target browser. The first card is absolutely positioned above the rail, and the rail is padded by exactly one card width plus the gap, so the remaining cards begin beside it and pass underneath as it scrolls.
 38. **The `Hourly | Weekly` control is an underline, not a pill.** A filled pill is a second heavy surface stacked directly above the cards, which is what removing the Figma's arrow strip was meant to avoid.
+39. **The app fills the viewport and never scrolls as a page.** `.app-shell` has a definite `height: 100dvh` rather than `min-height`, and screens are flex children of it. Requested, to remove the dead space below the fold. It also fixed the map, which needs a real height handed to it. Screens with more content than height (settings, guide, explore) scroll inside their own region. The tradeoff: at the Large text size on a short phone, the home screen has no room to grow into, so anything that does not fit is clipped rather than scrolled.
+40. **The map container is sized directly, not with `absolute inset-0`.** `maplibre-gl.css` sets `position: relative` on `.maplibregl-map` and loads after Tailwind, so the absolute positioning lost and the container collapsed to zero height. That, plus a style-ready guard that bailed without ever retrying, is why the map never appeared.
+
 
 
 ---

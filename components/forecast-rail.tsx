@@ -8,6 +8,7 @@ import {
   temperatureUnit,
   type Units,
 } from "@/lib/format";
+import type { GradientStops } from "@/lib/gradient";
 import type { DailyPoint, HourlyPoint, Wind } from "@/lib/weather/types";
 
 import { DropletIcon, RainChanceIcon, SunIcon, WindIcon } from "./metric-icons";
@@ -19,6 +20,8 @@ type Props = {
   daily: DailyPoint[];
   timeZone: string;
   units?: Units;
+  /** Tints the pinned card's edge from the same stops as the greeting. */
+  gradient?: GradientStops;
   /** Set when the weekly source failed, so the empty state can say why. */
   dailyUnavailable?: string;
 };
@@ -125,7 +128,7 @@ function CardBody({ card, units }: { card: CardContent; units: Units }) {
         </span>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2.5">
+      <div className="mt-5 flex flex-col gap-3.5">
         <DetailRow icon={<SunIcon size={17} />}>{card.condition}</DetailRow>
         <DetailRow icon={<DropletIcon size={17} />}>
           {humidityLabel(card.humidity)}
@@ -144,6 +147,7 @@ export function ForecastRail({
   daily,
   timeZone,
   units = "metric",
+  gradient,
   dailyUnavailable,
 }: Props) {
   const cards: CardContent[] =
@@ -175,8 +179,16 @@ export function ForecastRail({
             scrolling container (Decisions Log 37).
           */}
           <div
-            className="card-raised card-pinned ww-fade absolute top-1 z-20 rounded-card px-4 py-4"
-            style={{ left: EDGE, width: CARD_WIDTH }}
+            className="card-raised card-pinned edge-gradient ww-fade absolute top-1 z-20 rounded-card px-4 py-5"
+            style={
+              {
+                left: EDGE,
+                width: CARD_WIDTH,
+                ...(gradient
+                  ? { "--edge-from": gradient.from, "--edge-to": gradient.to }
+                  : {}),
+              } as React.CSSProperties
+            }
           >
             <CardBody card={pinned} units={units} />
           </div>
@@ -184,11 +196,17 @@ export function ForecastRail({
           <div
             // Padded so the scrolling cards begin to the right of the pinned
             // card and pass beneath it as the padding scrolls away.
+            //
+            // The mask hides the strip to the left of the pinned card. Without
+            // it, cards scrolling past showed in the gutter between the screen
+            // edge and the pinned card, which read as a rendering fault.
             className="overflow-x-auto overflow-y-clip [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{
               paddingLeft: `calc(${CARD_WIDTH} + ${GAP} + ${EDGE})`,
               scrollSnapType: "x proximity",
               WebkitOverflowScrolling: "touch",
+              WebkitMaskImage: `linear-gradient(to right, transparent 0, transparent ${EDGE}, #000 ${EDGE})`,
+              maskImage: `linear-gradient(to right, transparent 0, transparent ${EDGE}, #000 ${EDGE})`,
             }}
             tabIndex={0}
           >
@@ -196,7 +214,7 @@ export function ForecastRail({
               {rest.map((card, index) => (
                 <li
                   key={card.key}
-                  className="card-raised ww-rise z-10 shrink-0 snap-start rounded-card px-4 py-4"
+                  className="card-raised ww-rise z-10 shrink-0 snap-start rounded-card px-4 py-5"
                   style={
                     {
                       width: CARD_WIDTH,

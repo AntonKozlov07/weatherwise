@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { GRADIENT_TICK_MS, getGreetingGradient } from "@/lib/gradient";
-import type { Astronomy, ConditionRef } from "@/lib/weather/types";
+import { GRADIENT_TICK_MS, type GradientStops } from "@/lib/gradient";
 
 type Props = {
   /** Empty until onboarding captures it (Decisions Log 5). */
   name?: string;
-  condition: ConditionRef;
-  astronomy: Astronomy;
+  gradient: GradientStops;
   timeZone: string;
 };
 
@@ -27,41 +25,13 @@ function salutation(now: Date, timeZone: string): string {
   return "Good Evening";
 }
 
-/**
- * Falls back to rough clock hours only when the real sun times are missing,
- * which happens when Open-Meteo failed. The gradient is meant to track the
- * actual sky, so this is a degraded mode, not an alternative.
- */
-function sunTimes(astronomy: Astronomy, now: Date): { sunrise: Date; sunset: Date } {
-  if (astronomy.sunrise !== null && astronomy.sunset !== null) {
-    return {
-      sunrise: new Date(astronomy.sunrise),
-      sunset: new Date(astronomy.sunset),
-    };
-  }
-
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
-
-  return {
-    sunrise: new Date(midnight.getTime() + 6 * 3_600_000),
-    sunset: new Date(midnight.getTime() + 20 * 3_600_000),
-  };
-}
-
-export function Greeting({ name, condition, astronomy, timeZone }: Props) {
+export function Greeting({ name, gradient, timeZone }: Props) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    // Recomputed every 60 seconds, per CLAUDE.md. A drift this slow does not
-    // need requestAnimationFrame, and an interval keeps it off the main thread
-    // between ticks.
     const timer = setInterval(() => setNow(new Date()), GRADIENT_TICK_MS);
     return () => clearInterval(timer);
   }, []);
-
-  const { sunrise, sunset } = sunTimes(astronomy, now);
-  const gradient = getGreetingGradient(now, sunrise, sunset, condition.code);
 
   // Trimmed, or a name stored with trailing whitespace renders "Anton !".
   const trimmed = name?.trim();
@@ -69,7 +39,7 @@ export function Greeting({ name, condition, astronomy, timeZone }: Props) {
 
   return (
     <h1
-      className="type-heading text-[1.75rem] leading-tight"
+      className="type-heading text-[2.125rem] leading-[1.15]"
       style={{
         backgroundImage: `linear-gradient(90deg, ${gradient.from}, ${gradient.to})`,
         backgroundClip: "text",

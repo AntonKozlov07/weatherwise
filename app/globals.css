@@ -147,9 +147,23 @@
     bottom: 0.62em;
   }
 
-  /* Clears the Dynamic Island and the home indicator when installed. */
+  /**
+   * The app fills the screen exactly and never scrolls as a page.
+   *
+   * `height`, not `min-height`: a definite height is what lets a screen hand a
+   * real height to a flex child. Without it the map's container resolved to
+   * zero and the map rendered into nothing. It also removes the page scroll
+   * that made the home screen feel like it had dead space below the fold
+   * (Decisions Log 39).
+   *
+   * Screens that genuinely overflow (settings, guide, explore) scroll inside
+   * their own region rather than moving the whole page.
+   */
   .app-shell {
-    min-height: 100dvh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
@@ -163,6 +177,55 @@
     .app-shell {
       padding-top: max(env(safe-area-inset-top), 3rem);
     }
+  }
+
+  /* A screen inside the shell. Fills what is left and never grows past it. */
+  .screen {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+  }
+
+  /* The scrolling region of a screen that has more content than height. */
+  .screen-scroll {
+    min-height: 0;
+    flex: 1 1 0%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /**
+   * A one pixel gradient edge, tinted from the greeting's own stops so the
+   * cards track the sky along with it. Drawn as a masked pseudo-element rather
+   * than a border, because a gradient cannot be a border-color.
+   */
+  .edge-gradient {
+    position: relative;
+  }
+
+  .edge-gradient::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      140deg,
+      var(--edge-from, transparent),
+      var(--edge-to, transparent)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   /* ---- Surfaces ----

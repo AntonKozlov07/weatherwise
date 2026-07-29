@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: "Guide" };
 /** Copy is used as written in CLAUDE.md. Do not paraphrase it. */
 export default function GuidePage() {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <main className="selectable flex flex-col gap-5 px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6">
+    <div className="screen">
+      <main className="screen-scroll selectable flex flex-col gap-5 px-5 pb-6 pt-6">
         <h1 className="type-heading text-2xl">Reading WeatherWise</h1>
 
         <p className="text-[0.9375rem] leading-relaxed text-text-dim">

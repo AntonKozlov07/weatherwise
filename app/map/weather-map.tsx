@@ -26,6 +26,45 @@ const WIND_LAYER = "wind-layer";
 /** Slow enough to read the movement, fast enough to see the whole loop. */
 const FRAME_MS = 500;
 
+/**
+ * Runs a style mutation once the style can accept one.
+ *
+ * `addSource` throws before the style has loaded, and `isStyleLoaded()` can
+ * still be false on the `load` event itself. Bailing out in that case left the
+ * radar layer never added at all, because nothing retried afterwards. This
+ * defers instead, and returns a cleanup that cancels a pending run.
+ */
+function applyToStyle(
+  map: InstanceType<typeof MapLibreMap>,
+  mutate: () => void,
+): () => void {
+  let cancelled = false;
+
+  const run = () => {
+    if (cancelled || !map.getContainer().isConnected) return;
+    try {
+      mutate();
+    } catch {
+      // A style swap mid-flight can invalidate the call. The next dependency
+      // change re-runs it, and a missing overlay is not worth a crash.
+    }
+  };
+
+  if (map.isStyleLoaded()) {
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }
+
+  map.once("idle", run);
+
+  return () => {
+    cancelled = true;
+    map.off("idle", run);
+  };
+}
+
 export function WeatherMap() {
   const preferences = usePreferences();
   const saved = activeLocation(preferences);
@@ -59,9 +98,19 @@ export function WeatherMap() {
     map.on("load", () => setReady(true));
     mapRef.current = map;
 
+    // The container is sized by flex layout, which can settle after the map is
+    // constructed. Without this the canvas keeps whatever size it saw first.
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(containerRef.current);
+
     return () => {
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
+      // Reset, or the next map (React mounts effects twice in development)
+      // inherits a true `ready` and the layer effects run against a style that
+      // has not loaded yet.
+      setReady(false);
     };
     // Centre is read once. Re-centring on a location change would fight a user
     // who has panned away, so switching cities takes effect on the next visit.
@@ -97,25 +146,28 @@ export function WeatherMap() {
     const map = mapRef.current;
     if (!map || !ready) return;
 
-    if (map.getLayer(RADAR_LAYER)) map.removeLayer(RADAR_LAYER);
-    if (map.getSource(RADAR_SOURCE)) map.removeSource(RADAR_SOURCE);
+    return applyToStyle(map, () => {
+      if (map.getLayer(RADAR_LAYER)) map.removeLayer(RADAR_LAYER);
+      if (map.getSource(RADAR_SOURCE)) map.removeSource(RADAR_SOURCE);
 
-    if (layer !== "precipitation" || !timeline) return;
+      if (layer !== "precipitation" || !timeline) return;
 
-    const frame = timeline.frames[frameIndex];
-    if (!frame) return;
+      const frame = timeline.frames[frameIndex];
+      if (!frame) return;
 
-    map.addSource(RADAR_SOURCE, {
-      type: "raster",
-      tiles: [radarTileUrl(timeline, frame)],
-      tileSize: 512,
-    });
+      map.addSource(RADAR_SOURCE, {
+        type: "raster",
+        tiles: [radarTileUrl(timeline, frame)],
+        tileSize: 512,
+        attribution: "RainViewer",
+      });
 
-    map.addLayer({
-      id: RADAR_LAYER,
-      type: "raster",
-      source: RADAR_SOURCE,
-      paint: { "raster-opacity": opacity },
+      map.addLayer({
+        id: RADAR_LAYER,
+        type: "raster",
+        source: RADAR_SOURCE,
+        paint: { "raster-opacity": opacity },
+      });
     });
   }, [ready, layer, timeline, frameIndex, opacity]);
 
@@ -123,24 +175,26 @@ export function WeatherMap() {
     const map = mapRef.current;
     if (!map || !ready) return;
 
-    if (map.getLayer(WIND_LAYER)) map.removeLayer(WIND_LAYER);
-    if (map.getSource(WIND_SOURCE)) map.removeSource(WIND_SOURCE);
+    return applyToStyle(map, () => {
+      if (map.getLayer(WIND_LAYER)) map.removeLayer(WIND_LAYER);
+      if (map.getSource(WIND_SOURCE)) map.removeSource(WIND_SOURCE);
 
-    if (layer !== "wind") return;
+      if (layer !== "wind") return;
 
-    map.addSource(WIND_SOURCE, {
-      type: "raster",
-      // Through our own proxy, because the key cannot be in a tile template.
-      tiles: [`${window.location.origin}/api/wind/{z}/{x}/{y}`],
-      tileSize: 256,
-      maxzoom: 12,
-    });
+      map.addSource(WIND_SOURCE, {
+        type: "raster",
+        // Through our own proxy, because the key cannot be in a tile template.
+        tiles: [`${window.location.origin}/api/wind/{z}/{x}/{y}`],
+        tileSize: 256,
+        maxzoom: 12,
+      });
 
-    map.addLayer({
-      id: WIND_LAYER,
-      type: "raster",
-      source: WIND_SOURCE,
-      paint: { "raster-opacity": opacity },
+      map.addLayer({
+        id: WIND_LAYER,
+        type: "raster",
+        source: WIND_SOURCE,
+        paint: { "raster-opacity": opacity },
+      });
     });
   }, [ready, layer, opacity]);
 
@@ -172,11 +226,17 @@ export function WeatherMap() {
   const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <div className="relative flex-1">
-        <div ref={containerRef} className="absolute inset-0" />
+    <div className="screen">
+      {/* `min-h-0` matters: without it this flex child resolved to zero height
+          and MapLibre rendered into nothing at all. */}
+      <div className="relative min-h-0 flex-1">
+        {/* Sized directly rather than with `absolute inset-0`: maplibre-gl.css
+            sets `position: relative` on `.maplibregl-map` and loads after
+            Tailwind, so the absolute positioning was overridden and the
+            container collapsed to zero height (Decisions Log 40). */}
+        <div ref={containerRef} className="h-full w-full" />
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4">
           <div className="pointer-events-auto card-floating flex gap-1 self-start rounded-pill p-1">
             {(["precipitation", "wind", "off"] as const).map((option) => (
               <button

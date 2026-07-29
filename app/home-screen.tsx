@@ -11,18 +11,102 @@ import { Greeting } from "@/components/greeting";
 import { NowCard } from "@/components/now-card";
 import { OfflineBanner } from "@/components/offline-banner";
 import { usePreferences } from "@/components/preferences-provider";
-import { readPreferences } from "@/lib/preferences-store";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { SegmentedControl, type RailMode } from "@/components/segmented-control";
 import { ErrorState, HomeSkeleton } from "@/components/skeletons";
 import { formatUpdatedAgo } from "@/lib/format";
 import { useForecast } from "@/lib/hooks/use-forecast";
+import { useGreetingGradient } from "@/lib/hooks/use-greeting-gradient";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { activeLocation } from "@/lib/preferences";
+import { readPreferences } from "@/lib/preferences-store";
+import type { ForecastBundle } from "@/lib/weather/types";
 
 /** Rain chance for the now card, taken from the hours immediately ahead. */
 function nearTermRainChance(chances: number[]): number {
   return chances.length === 0 ? 0 : Math.max(...chances);
+}
+
+/**
+ * Split out because the gradient hook needs a condition and astronomy, which
+ * only exist once the bundle has loaded. Calling it above the loading branch
+ * would mean calling a hook conditionally.
+ */
+function LoadedHome({
+  bundle,
+  staleSince,
+  name,
+  units,
+  alertBanners,
+  mode,
+  onModeChange,
+}: {
+  bundle: ForecastBundle;
+  staleSince: number | null;
+  name: string;
+  units: "metric" | "imperial";
+  alertBanners: boolean;
+  mode: RailMode;
+  onModeChange: (mode: RailMode) => void;
+}) {
+  const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {staleSince !== null && <OfflineBanner staleSince={staleSince} />}
+
+      {alertBanners && bundle.alerts.length > 0 && (
+        <AlertBanner alerts={bundle.alerts} />
+      )}
+
+      <div className="ww-rise px-5">
+        <Greeting name={name} gradient={gradient} timeZone={bundle.location.timeZone} />
+        <p className="type-label mt-1 text-[0.625rem]">
+          {bundle.location.name} · {formatUpdatedAgo(bundle.current.observedAt)}
+        </p>
+      </div>
+
+      <div
+        className="ww-rise"
+        style={{ "--rise-delay": "60ms" } as React.CSSProperties}
+      >
+        <NowCard
+          current={bundle.current}
+          timeZone={bundle.location.timeZone}
+          units={units}
+          gradient={gradient}
+          precipitationChance={nearTermRainChance(
+            bundle.hourly.slice(0, 6).map((hour) => hour.precipitationChance),
+          )}
+        />
+      </div>
+
+      {/* The open space the Figma's arrow element used to occupy. It absorbs
+          whatever height is left, so the screen fills exactly once. */}
+      <div className="min-h-3 flex-1" />
+
+      <div
+        className="ww-rise"
+        style={{ "--rise-delay": "120ms" } as React.CSSProperties}
+      >
+        <SegmentedControl value={mode} onChange={onModeChange} />
+      </div>
+
+      <ForecastRail
+        mode={mode}
+        hourly={bundle.hourly}
+        daily={bundle.daily}
+        timeZone={bundle.location.timeZone}
+        units={units}
+        gradient={gradient}
+        dailyUnavailable={
+          bundle.sources.openMeteo.ok
+            ? undefined
+            : "The weekly forecast is unavailable right now."
+        }
+      />
+    </div>
+  );
 }
 
 export function HomeScreen() {
@@ -46,9 +130,9 @@ export function HomeScreen() {
   }, [router]);
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden">
+    <div className="screen relative overflow-hidden">
       <PullToRefresh onRefresh={refresh}>
-        <div className="flex min-h-dvh flex-col">
+        <div className="flex h-full min-h-0 flex-col">
           <AppHeader
             locationName={
               state.status === "ready" ? state.bundle.location.name : undefined
@@ -62,66 +146,15 @@ export function HomeScreen() {
           )}
 
           {state.status === "ready" && (
-            <div className="flex flex-1 flex-col gap-6">
-              {state.staleSince !== null && (
-                <OfflineBanner staleSince={state.staleSince} />
-              )}
-
-              {preferences.alertBanners && state.bundle.alerts.length > 0 && (
-                <AlertBanner alerts={state.bundle.alerts} />
-              )}
-
-              <div className="ww-rise px-5">
-                <Greeting
-                  name={preferences.name}
-                  condition={state.bundle.current.condition}
-                  astronomy={state.bundle.astronomy}
-                  timeZone={state.bundle.location.timeZone}
-                />
-                <p className="type-label mt-2 text-[0.6875rem]">
-                  {state.bundle.location.name} ·{" "}
-                  {formatUpdatedAgo(state.bundle.current.observedAt)}
-                </p>
-              </div>
-
-              <div className="ww-rise" style={{ "--rise-delay": "60ms" } as React.CSSProperties}>
-                <NowCard
-                  current={state.bundle.current}
-                  timeZone={state.bundle.location.timeZone}
-                  units={preferences.units}
-                  precipitationChance={nearTermRainChance(
-                    state.bundle.hourly
-                      .slice(0, 6)
-                      .map((hour) => hour.precipitationChance),
-                  )}
-                />
-              </div>
-
-              {/* The open space the Figma's arrow element used to occupy. It
-                  takes two thirds of the slack on a tall phone, so the extra
-                  height reads as deliberate spacing rather than pooling into a
-                  dead gap above the nav. */}
-              <div className="min-h-6 flex-[2]" />
-
-              <div className="ww-rise" style={{ "--rise-delay": "120ms" } as React.CSSProperties}>
-                <SegmentedControl value={mode} onChange={setMode} />
-              </div>
-
-              <ForecastRail
-                mode={mode}
-                hourly={state.bundle.hourly}
-                daily={state.bundle.daily}
-                timeZone={state.bundle.location.timeZone}
-                units={preferences.units}
-                dailyUnavailable={
-                  state.bundle.sources.openMeteo.ok
-                    ? undefined
-                    : "The weekly forecast is unavailable right now."
-                }
-              />
-
-              <div className="min-h-2 flex-[1]" />
-            </div>
+            <LoadedHome
+              bundle={state.bundle}
+              staleSince={state.staleSince}
+              name={preferences.name}
+              units={preferences.units}
+              alertBanners={preferences.alertBanners}
+              mode={mode}
+              onModeChange={setMode}
+            />
           )}
 
           <BottomNav />

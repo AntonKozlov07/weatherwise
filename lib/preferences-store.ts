@@ -95,8 +95,21 @@ export function readPreferences(): Preferences {
   return getSnapshot();
 }
 
+/**
+ * Writes through the same stylesheet the pre-paint script creates, rather than
+ * an inline style on `<html>`. An inline style there differs from the server
+ * HTML and React reports it as a hydration mismatch on every load.
+ */
 export function applyAppearance(preferences: Preferences): void {
-  const root = document.documentElement;
-  root.dataset.theme = preferences.theme;
-  root.style.setProperty("--app-font-size", FONT_SIZES[preferences.fontSize]);
+  document.documentElement.dataset.theme = preferences.theme;
+
+  let style = document.getElementById("ww-font-size");
+
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "ww-font-size";
+    document.head.appendChild(style);
+  }
+
+  style.textContent = `:root{--app-font-size:${FONT_SIZES[preferences.fontSize]}}`;
 }

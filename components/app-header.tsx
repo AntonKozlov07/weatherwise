@@ -53,8 +53,8 @@ export function AppHeader({ locationName }: { locationName?: string }) {
         <Image
           src="/brand/WeatherWise_Text_Logo.svg"
           alt="WeatherWise"
-          width={174}
-          height={14}
+          width={232}
+          height={19}
           priority
           unoptimized
         />

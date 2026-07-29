@@ -55,8 +55,8 @@ export function Settings() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <main className="ww-rise flex flex-col gap-9 px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6">
+    <div className="screen">
+      <main className="screen-scroll ww-rise flex flex-col gap-9 px-5 pb-6 pt-6">
         <h1 className="type-heading text-2xl">Settings</h1>
 
         <Section title="You">

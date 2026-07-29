@@ -11,6 +11,9 @@ import { FONT_SIZES, STORAGE_KEY } from "@/lib/preferences";
  * throw here would take the whole page with it.
  */
 export function ThemeScript() {
+  // The font size goes in a stylesheet rather than an inline style on <html>.
+  // Setting the style attribute makes the pre-hydration DOM differ from the
+  // server HTML, which React reports as a hydration mismatch on every load.
   const script = `
 (function () {
   try {
@@ -18,7 +21,13 @@ export function ThemeScript() {
     var sizes = ${JSON.stringify(FONT_SIZES)};
     var root = document.documentElement;
     if (stored.theme === "midnight") root.dataset.theme = "midnight";
-    if (sizes[stored.fontSize]) root.style.setProperty("--app-font-size", sizes[stored.fontSize]);
+    var size = sizes[stored.fontSize];
+    if (size) {
+      var style = document.createElement("style");
+      style.id = "ww-font-size";
+      style.textContent = ":root{--app-font-size:" + size + "}";
+      document.head.appendChild(style);
+    }
   } catch (e) {}
 })();
 `.trim();

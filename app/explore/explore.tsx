@@ -88,8 +88,8 @@ export function Explore() {
   }, [category, reloadKey]);
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="px-5 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+    <div className="screen">
+      <header className="px-5 pt-6">
         <h1 className="type-heading text-2xl">Explore</h1>
       </header>
 
@@ -122,7 +122,7 @@ export function Explore() {
         </div>
       </div>
 
-      <div className="flex-1 px-5 py-5">
+      <div className="screen-scroll px-5 py-5">
         {state.status === "loading" && (
           <ul className="flex flex-col gap-3">
             {Array.from({ length: 5 }, (_, index) => (

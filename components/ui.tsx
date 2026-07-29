@@ -142,9 +142,11 @@ export function Toggle({
           checked ? "bg-accent" : "bg-surface-raised"
         }`}
       >
+        {/* Positioned with `left`, not a transform. A transform is a percentage
+            of the knob, which put it outside the track at the on position. */}
         <span
-          className="absolute top-1 h-5 w-5 rounded-pill bg-white transition-transform"
-          style={{ transform: `translateX(${checked ? 1.5 : 0.25}rem)` }}
+          className="absolute top-1 h-5 w-5 rounded-pill bg-white transition-[left] duration-200"
+          style={{ left: checked ? "1.5rem" : "0.25rem" }}
         />
       </button>
     </div>

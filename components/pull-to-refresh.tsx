@@ -104,7 +104,9 @@ export function PullToRefresh({ onRefresh, children }: Props) {
   const armed = pull >= THRESHOLD;
 
   return (
-    <div ref={containerRef}>
+    // Both wrappers pass the screen's height through. Left at auto height they
+    // collapse to their content, which stranded the bottom nav mid-screen.
+    <div ref={containerRef} className="flex min-h-0 flex-1 flex-col">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
         style={{
@@ -135,6 +137,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
       </div>
 
       <div
+        className="flex min-h-0 flex-1 flex-col"
         style={{
           transform: `translate3d(0, ${pull}px, 0)`,
           transition: dragging

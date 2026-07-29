@@ -6,6 +6,7 @@ import {
   temperatureUnit,
   type Units,
 } from "@/lib/format";
+import type { GradientStops } from "@/lib/gradient";
 import type { CurrentConditions } from "@/lib/weather/types";
 
 import { DropletIcon, RainChanceIcon, WindIcon } from "./metric-icons";
@@ -17,6 +18,8 @@ type Props = {
   /** Highest precipitation chance in the coming hours, which "now" has none of. */
   precipitationChance: number;
   units?: Units;
+  /** Tints the card edge from the same stops as the greeting. */
+  gradient?: GradientStops;
 };
 
 function Row({
@@ -45,11 +48,20 @@ export function NowCard({
   timeZone,
   precipitationChance,
   units = "metric",
+  gradient,
 }: Props) {
   return (
     <section
       aria-label="Current conditions"
-      className="card mx-5 rounded-card p-5"
+      className="card edge-gradient mx-5 rounded-card p-5"
+      style={
+        gradient
+          ? ({
+              "--edge-from": gradient.from,
+              "--edge-to": gradient.to,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       <p className="text-base text-text-dim">
         {formatLongDate(current.observedAt, timeZone)}
