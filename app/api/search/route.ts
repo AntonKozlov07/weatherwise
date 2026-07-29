@@ -1,14 +1,17 @@
 import { WeatherError, errorResponse } from "@/lib/weather/errors";
-import { searchCities } from "@/lib/weather/weatherapi/client";
+import { searchCities } from "@/lib/weather/openweather/client";
 
-/** Below this, WeatherAPI matches too broadly to be useful. */
+/** Below this, geocoding matches too broadly to be useful. */
 const MIN_QUERY_LENGTH = 2;
 
 /**
  * GET /api/search?q=
  *
- * City search for the saved locations screen. An unmatched query is an empty
- * list and a 200, not an error.
+ * City search, backed by OpenWeatherMap's Geocoding API. One Call takes
+ * coordinates only and returns no place names, so this is what makes saved
+ * locations possible at all.
+ *
+ * An unmatched query is an empty list and a 200, not an error.
  */
 export async function GET(request: Request): Promise<Response> {
   try {

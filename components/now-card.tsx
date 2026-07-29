@@ -75,7 +75,7 @@ export function NowCard({
 
         <div className="flex flex-col gap-3 pt-3">
           <Row icon={<WeatherIcon condition={current.condition} size={22} />}>
-            {current.condition.text}
+            {current.condition.label}
           </Row>
           <Row icon={<DropletIcon />}>{humidityLabel(current.humidity)}</Row>
           <Row icon={<WindIcon />}>

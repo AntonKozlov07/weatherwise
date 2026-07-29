@@ -1,21 +1,22 @@
-import { wmoText } from "./open-meteo/wmo";
-import type { RawDailyResponse } from "./open-meteo/raw";
-import type {
-  AirQuality,
-  Astronomy,
-  CurrentConditions,
-  DailyPoint,
-  HourlyPoint,
-  LocationSummary,
-  WeatherAlert,
-  Wind,
-} from "./types";
+import { conditionInfo } from "./openweather/conditions";
 import type {
   RawAlert,
   RawCurrent,
-  RawForecastResponse,
+  RawDay,
   RawHour,
-} from "./weatherapi/raw";
+  RawOneCallResponse,
+  RawWeather,
+} from "./openweather/raw";
+import type {
+  AirQuality,
+  Astronomy,
+  ConditionRef,
+  CurrentConditions,
+  DailyPoint,
+  HourlyPoint,
+  WeatherAlert,
+  Wind,
+} from "./types";
 
 /** How many hourly points the bundle carries. The rail shows the first 24. */
 const HOURLY_POINTS = 48;
@@ -30,214 +31,191 @@ export function degreesToCompass(degrees: number): string {
   return COMPASS[index];
 }
 
-function toNumber(value: number | string | null | undefined): number | null {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value !== "string") return null;
-
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/** WeatherAPI epochs are seconds. Everything downstream is milliseconds. */
+/** OWM epochs are seconds. Everything downstream is milliseconds. */
 function toMillis(epochSeconds: number): number {
   return epochSeconds * 1000;
 }
 
-function parseIsoOrNull(value: string | undefined): number | null {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
+function toMillisOrNull(epochSeconds: number | undefined): number | null {
+  return typeof epochSeconds === "number" ? toMillis(epochSeconds) : null;
 }
 
-export function normalizeLocation(raw: RawForecastResponse): LocationSummary {
-  return {
-    name: raw.location.name,
-    region: raw.location.region,
-    country: raw.location.country,
-    latitude: raw.location.lat,
-    longitude: raw.location.lon,
-    timeZone: raw.location.tz_id,
-  };
+/** OWM reports wind in m/s under `units=metric`. It offers no km/h option. */
+export function metresPerSecondToKph(value: number): number {
+  return value * 3.6;
 }
 
 function normalizeWind(
   speed: number,
   degrees: number,
-  compass: string | null,
-  gust: number | null | undefined,
+  gust: number | undefined,
 ): Wind {
   return {
-    speed,
-    gust: typeof gust === "number" ? gust : null,
+    speed: metresPerSecondToKph(speed),
+    gust: typeof gust === "number" ? metresPerSecondToKph(gust) : null,
     direction: degrees,
-    compass: compass ?? degreesToCompass(degrees),
+    compass: degreesToCompass(degrees),
   };
+}
+
+/**
+ * Day or night comes from the icon suffix, `01d` against `01n`.
+ *
+ * OWM has no `is_day` field, and this is more reliable than comparing against
+ * sunrise and sunset, which are only present on some blocks (Decisions Log 42).
+ */
+function normalizeCondition(weather: RawWeather[] | undefined): ConditionRef {
+  const entry = weather?.[0];
+  const code = entry?.id ?? 800;
+
+  return {
+    code,
+    label: conditionInfo(code).label,
+    isDay: entry?.icon ? entry.icon.endsWith("d") : true,
+  };
+}
+
+/** OWM omits `visibility` rather than sending a value when it is unknown. */
+function visibilityKm(metres: number | undefined): number {
+  return typeof metres === "number" ? metres / 1000 : 0;
 }
 
 export function normalizeCurrent(raw: RawCurrent): CurrentConditions {
   return {
-    observedAt: toMillis(raw.last_updated_epoch),
-    condition: {
-      system: "weatherapi",
-      code: raw.condition.code,
-      text: raw.condition.text,
-      isDay: raw.is_day === 1,
-    },
-    temperature: raw.temp_c,
-    feelsLike: raw.feelslike_c,
-    dewPoint: raw.dewpoint_c,
+    observedAt: toMillis(raw.dt),
+    condition: normalizeCondition(raw.weather),
+    temperature: raw.temp,
+    feelsLike: raw.feels_like,
+    dewPoint: raw.dew_point,
     humidity: raw.humidity,
-    pressure: raw.pressure_mb,
-    visibility: raw.vis_km,
-    cloudCover: raw.cloud,
-    precipitation: raw.precip_mm,
-    uvIndex: raw.uv,
-    wind: normalizeWind(
-      raw.wind_kph,
-      raw.wind_degree,
-      raw.wind_dir,
-      raw.gust_kph,
-    ),
+    pressure: raw.pressure,
+    visibility: visibilityKm(raw.visibility),
+    cloudCover: raw.clouds,
+    // Rain and snow are reported separately and only when falling.
+    precipitation: (raw.rain?.["1h"] ?? 0) + (raw.snow?.["1h"] ?? 0),
+    uvIndex: raw.uvi,
+    wind: normalizeWind(raw.wind_speed, raw.wind_deg, raw.wind_gust),
   };
 }
 
 function normalizeHour(raw: RawHour): HourlyPoint {
   return {
-    time: toMillis(raw.time_epoch),
-    condition: {
-      system: "weatherapi",
-      code: raw.condition.code,
-      text: raw.condition.text,
-      isDay: raw.is_day === 1,
-    },
-    temperature: raw.temp_c,
-    feelsLike: raw.feelslike_c,
-    // Rain and snow are reported separately; the card shows one number.
-    precipitationChance: Math.max(raw.chance_of_rain, raw.chance_of_snow),
-    precipitation: raw.precip_mm,
+    time: toMillis(raw.dt),
+    condition: normalizeCondition(raw.weather),
+    temperature: raw.temp,
+    feelsLike: raw.feels_like,
+    // OWM reports probability as 0 to 1; the app shows a percentage.
+    precipitationChance: Math.round(raw.pop * 100),
+    precipitation: (raw.rain?.["1h"] ?? 0) + (raw.snow?.["1h"] ?? 0),
     humidity: raw.humidity,
-    uvIndex: raw.uv,
-    wind: normalizeWind(
-      raw.wind_kph,
-      raw.wind_degree,
-      raw.wind_dir,
-      raw.gust_kph,
-    ),
+    uvIndex: raw.uvi,
+    wind: normalizeWind(raw.wind_speed, raw.wind_deg, raw.wind_gust),
   };
 }
 
 /**
- * WeatherAPI returns whole days, so the first day starts at midnight and is
- * mostly in the past by evening. The rail wants the hours ahead, so trim to the
- * current hour onward.
+ * OWM's hourly block already starts at the current hour, so unlike the previous
+ * vendor there is nothing in the past to trim. It is still filtered, because a
+ * cached payload served offline can be hours old.
  */
 export function normalizeHourly(
-  raw: RawForecastResponse,
+  raw: RawOneCallResponse,
   now: number,
 ): HourlyPoint[] {
   const currentHour = now - (now % 3_600_000);
 
-  return raw.forecast.forecastday
-    .flatMap((day) => day.hour)
+  return (raw.hourly ?? [])
     .map(normalizeHour)
     .filter((hour) => hour.time >= currentHour)
     .slice(0, HOURLY_POINTS);
 }
 
+export function normalizeDaily(raw: RawOneCallResponse): DailyPoint[] {
+  return (raw.daily ?? []).map((day: RawDay) => ({
+    date: toMillis(day.dt),
+    condition: normalizeCondition(day.weather),
+    high: day.temp.max,
+    low: day.temp.min,
+    precipitationChance: Math.round(day.pop * 100),
+    // Daily rain and snow are already totals in mm, not hourly buckets.
+    precipitation: (day.rain ?? 0) + (day.snow ?? 0),
+    humidity: day.humidity,
+    uvIndex: day.uvi,
+    wind: normalizeWind(day.wind_speed, day.wind_deg, day.wind_gust),
+  }));
+}
+
 /**
- * Sunrise and sunset come from Open-Meteo as real instants; moon data comes
- * from WeatherAPI as local wall clock strings, which are display only
- * (Decisions Log 19).
+ * OWM gives a 0 to 1 cycle position rather than a phase name or an illumination
+ * percentage, so the label is derived. Boundaries are the conventional eighths,
+ * with the quarters and syzygies given a narrow window so "Full Moon" means
+ * close to full rather than anything in the second quarter.
  */
-export function normalizeAstronomy(
-  forecast: RawForecastResponse,
-  daily: RawDailyResponse | null,
-): Astronomy {
-  const astro = forecast.forecast.forecastday[0]?.astro;
-  const sunrise = daily?.daily.sunrise[0] ?? null;
-  const sunset = daily?.daily.sunset[0] ?? null;
+export function moonPhaseLabel(phase: number): string {
+  if (phase <= 0.02 || phase >= 0.98) return "New Moon";
+  if (phase < 0.23) return "Waxing Crescent";
+  if (phase <= 0.27) return "First Quarter";
+  if (phase < 0.48) return "Waxing Gibbous";
+  if (phase <= 0.52) return "Full Moon";
+  if (phase < 0.73) return "Waning Gibbous";
+  if (phase <= 0.77) return "Last Quarter";
+  return "Waning Crescent";
+}
+
+export function normalizeAstronomy(raw: RawOneCallResponse): Astronomy {
+  const today = raw.daily?.[0];
+
+  // Sun times sit on both blocks; current is preferred because it is always
+  // present, while the daily block can be excluded.
+  const sunrise = raw.current.sunrise ?? today?.sunrise;
+  const sunset = raw.current.sunset ?? today?.sunset;
+  const phase = today?.moon_phase;
 
   return {
-    sunrise: sunrise === null ? null : toMillis(sunrise),
-    sunset: sunset === null ? null : toMillis(sunset),
-    moonrise: astro?.moonrise ?? null,
-    moonset: astro?.moonset ?? null,
-    moonPhase: astro?.moon_phase ?? null,
-    moonIllumination: toNumber(astro?.moon_illumination),
+    sunrise: toMillisOrNull(sunrise),
+    sunset: toMillisOrNull(sunset),
+    moonrise: toMillisOrNull(today?.moonrise),
+    moonset: toMillisOrNull(today?.moonset),
+    moonPhase: typeof phase === "number" ? phase : null,
+    moonPhaseLabel: typeof phase === "number" ? moonPhaseLabel(phase) : null,
   };
 }
 
-export function normalizeAirQuality(raw: RawCurrent): AirQuality | null {
-  const aq = raw.air_quality;
-  if (!aq) return null;
+export function normalizeAirQuality(
+  raw: { aqi: number; components: Record<string, number> } | null,
+): AirQuality | null {
+  if (!raw) return null;
 
   return {
-    epaIndex: aq["us-epa-index"],
-    pm2_5: aq.pm2_5,
-    pm10: aq.pm10,
-    ozone: aq.o3,
-    nitrogenDioxide: aq.no2,
-    sulphurDioxide: aq.so2,
-    carbonMonoxide: aq.co,
+    index: raw.aqi,
+    pm2_5: raw.components.pm2_5 ?? 0,
+    pm10: raw.components.pm10 ?? 0,
+    ozone: raw.components.o3 ?? 0,
+    nitrogenDioxide: raw.components.no2 ?? 0,
+    sulphurDioxide: raw.components.so2 ?? 0,
+    carbonMonoxide: raw.components.co ?? 0,
   };
 }
 
 /**
- * WeatherAPI alerts carry no identifier. The banner is dismissible and the
- * dismissal has to survive a refetch, so the key is built from the fields that
- * identify the alert rather than its position in the array.
+ * OWM alerts carry no identifier. The banner is dismissible and the dismissal
+ * has to survive a refetch, so the key is built from the fields that identify
+ * the alert rather than its position in the array.
  */
 function alertId(raw: RawAlert): string {
-  return [raw.event ?? "", raw.effective ?? "", raw.areas ?? ""].join("|");
+  return [raw.event ?? "", raw.start ?? "", raw.sender_name ?? ""].join("|");
 }
 
-export function normalizeAlerts(raw: RawForecastResponse): WeatherAlert[] {
-  const alerts = raw.alerts?.alert ?? [];
-
-  return alerts
-    .filter((alert) => Boolean(alert.event ?? alert.headline))
+export function normalizeAlerts(raw: RawOneCallResponse): WeatherAlert[] {
+  return (raw.alerts ?? [])
+    .filter((alert) => Boolean(alert.event))
     .map((alert) => ({
       id: alertId(alert),
       event: alert.event ?? "Weather alert",
-      headline: alert.headline ?? alert.event ?? "Weather alert",
-      severity: alert.severity ?? "Unknown",
-      urgency: alert.urgency ?? "Unknown",
-      areas: alert.areas ?? "",
-      description: alert.desc ?? "",
-      instruction: alert.instruction ?? null,
-      effective: parseIsoOrNull(alert.effective),
-      expires: parseIsoOrNull(alert.expires),
+      source: alert.sender_name ?? "",
+      description: alert.description ?? "",
+      effective: toMillisOrNull(alert.start),
+      expires: toMillisOrNull(alert.end),
+      tags: alert.tags ?? [],
     }));
-}
-
-export function normalizeDaily(raw: RawDailyResponse): DailyPoint[] {
-  const daily = raw.daily;
-
-  return daily.time.map((time, index) => {
-    const code = daily.weather_code[index] ?? null;
-    const direction = daily.wind_direction_10m_dominant[index] ?? 0;
-
-    return {
-      date: toMillis(time),
-      condition: {
-        system: "wmo",
-        code: code ?? -1,
-        text: wmoText(code),
-        // A daily summary has no time of day. Day icons are the sane default.
-        isDay: true,
-      },
-      high: daily.temperature_2m_max[index] ?? 0,
-      low: daily.temperature_2m_min[index] ?? 0,
-      precipitationChance: daily.precipitation_probability_max[index] ?? 0,
-      precipitation: daily.precipitation_sum[index] ?? 0,
-      humidity: daily.relative_humidity_2m_mean[index] ?? 0,
-      uvIndex: daily.uv_index_max[index] ?? 0,
-      wind: normalizeWind(
-        daily.wind_speed_10m_max[index] ?? 0,
-        direction,
-        null,
-        daily.wind_gusts_10m_max[index] ?? null,
-      ),
-    };
-  });
 }

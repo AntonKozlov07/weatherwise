@@ -58,7 +58,7 @@ function toHourlyCard(point: HourlyPoint, timeZone: string): CardContent {
     heading: formatHour(point.time, timeZone),
     primary: point.temperature,
     chance: point.precipitationChance,
-    condition: point.condition.text,
+    condition: point.condition.label,
     humidity: point.humidity,
     wind: point.wind,
   };
@@ -71,7 +71,7 @@ function toDailyCard(point: DailyPoint, timeZone: string): CardContent {
     primary: point.high,
     secondary: point.low,
     chance: point.precipitationChance,
-    condition: point.condition.text,
+    condition: point.condition.label,
     humidity: point.humidity,
     wind: point.wind,
   };

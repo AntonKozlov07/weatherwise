@@ -20,7 +20,7 @@ export function WeatherIcon({ condition, size = 40, className }: Props) {
   return (
     <Image
       src={weatherIconSrc(condition)}
-      alt={condition.text}
+      alt={condition.label}
       width={size}
       height={size}
       className={className}

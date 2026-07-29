@@ -136,24 +136,25 @@ Build a `/dev/gradient` route (dev only) with sliders for time of day and a cond
 
 Split deliberately. Do not consolidate.
 
+**Superseded.** Every weather field now comes from OpenWeatherMap (Decisions Log 41). WeatherAPI.com, Open-Meteo, and RainViewer are all removed. The table below records the current sources.
+
 | Data | Source | Why |
 |---|---|---|
-| Current conditions, hourly (48h), AQI, astronomy, alerts, city search | **WeatherAPI.com** `forecast.json?aqi=yes&alerts=yes` | Richest current payload |
-| Daily forecast, 7 to 10 days | **Open-Meteo** | Free, keyless, unlimited, 16 day range. WeatherAPI's free plan caps daily forecast too low for the Weekly toggle |
-| Precipitation radar tiles + timeline | **RainViewer** public API, keyless | Animated frames, past 2h plus nowcast. Attribution link required |
-| Wind map tiles | **OpenWeatherMap Weather Maps 1.0**, `wind_new` layer | Free tier. Do not use their 2.0 endpoints, those are paid |
+| Current, hourly, daily, alerts | **OpenWeatherMap One Call** | One vendor for the whole forecast. Needs a One Call subscription on the account, separate from the free tier |
+| City search and place names | **OpenWeatherMap Geocoding** `/geo/1.0/direct` and `/reverse` | One Call takes coordinates only and returns no place name |
+| Air quality | **OpenWeatherMap Air Pollution** `/data/2.5/air_pollution` | One Call carries no air quality. Free tier |
+| Precipitation and wind map tiles | **OpenWeatherMap Weather Maps 1.0** | Free tier. Do not use their 2.0 endpoints, those are paid |
 | Map basemap | **MapLibre GL JS** + CARTO Dark Matter style | Free |
-| News | see below | |
+| News | see below. **Not** part of the weather migration | |
 
 ### Environment variables
 
 ```
-WEATHER_API_KEY=
 OPENWEATHER_API_KEY=
 NEWS_API_KEY=
 ```
 
-`.env*` must be in `.gitignore` in the first commit. Mirror all three into Vercel project settings.
+`WEATHER_API_KEY` is gone. `.env*` must be in `.gitignore`. Mirror both into Vercel project settings.
 
 ### News provider
 
@@ -280,6 +281,10 @@ Settled. Do not revisit without being asked.
 38. **The `Hourly | Weekly` control is an underline, not a pill.** A filled pill is a second heavy surface stacked directly above the cards, which is what removing the Figma's arrow strip was meant to avoid.
 39. **The app fills the viewport and never scrolls as a page.** `.app-shell` has a definite `height: 100dvh` rather than `min-height`, and screens are flex children of it. Requested, to remove the dead space below the fold. It also fixed the map, which needs a real height handed to it. Screens with more content than height (settings, guide, explore) scroll inside their own region. The tradeoff: at the Large text size on a short phone, the home screen has no room to grow into, so anything that does not fit is clipped rather than scrolled.
 40. **The map container is sized directly, not with `absolute inset-0`.** `maplibre-gl.css` sets `position: relative` on `.maplibregl-map` and loads after Tailwind, so the absolute positioning lost and the container collapsed to zero height. That, plus a style-ready guard that bailed without ever retrying, is why the map never appeared.
+41. **All weather data moved to OpenWeatherMap One Call.** WeatherAPI.com, Open-Meteo, and RainViewer are removed, along with `WEATHER_API_KEY`. This supersedes Decisions Log 6, 19, 20 and 21. `ConditionRef` now carries a single OWM numeric code plus a label resolved from `lib/weather/openweather/conditions.ts`, which is the one table mapping code to label, gradient bucket, and icon. The vendor's own lowercase `description` is not displayed anywhere.
+42. **Field losses from the migration, all deliberate.** One Call does not carry: a place name (reverse geocoding fills it, falling back to the timezone's city segment), city search (Geocoding API), air quality (Air Pollution API, 1 to 5 index rather than the 1 to 6 US EPA scale), `is_day` (read from the icon suffix `01d` against `01n`), moon illumination percentage (a phase label is derived from the 0 to 1 cycle position), and alert `severity`, `urgency`, `areas` or `instruction` (the banner shows the first sentence of the description plus the issuing office). Wind arrives in m/s and is converted to km/h; OWM offers no km/h option.
+43. **One Call has no multi-location batching.** It takes a single lat/lon per request, so saved locations cost one call each. They are fetched on demand for the active location rather than all at once, which keeps that linear cost off the home screen.
+
 
 
 

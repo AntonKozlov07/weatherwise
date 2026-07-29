@@ -1,4 +1,6 @@
-import { conditionBucket, type ConditionBucket } from "./conditions";
+import { conditionInfo } from "@/lib/weather/openweather/conditions";
+
+import type { ConditionBucket } from "./conditions";
 import {
   desaturate,
   hexToOklch,
@@ -97,7 +99,7 @@ export function getGreetingGradient(
 
   const modified = applyModifier(
     blended,
-    MODIFIERS[conditionBucket(conditionCode)],
+    MODIFIERS[conditionInfo(conditionCode).bucket],
   );
 
   return { from: oklchToHex(modified.from), to: oklchToHex(modified.to) };

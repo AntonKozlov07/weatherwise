@@ -4,8 +4,8 @@ import { WeatherError, errorResponse, fetchVendor } from "@/lib/weather/errors";
 /**
  * GET /api/tiles/{layer}/{z}/{x}/{y}
  *
- * Proxies OpenWeatherMap Weather Maps 1.0 tiles. Replaces the RainViewer radar
- * layer, so precipitation and wind now come from one vendor and one key.
+ * Proxies OpenWeatherMap Weather Maps 1.0 tiles, so precipitation and wind come
+ * from the same vendor and key as every other weather field.
  *
  * The proxy exists because the key cannot reach the browser, and a MapLibre
  * tile template is very much in the browser.

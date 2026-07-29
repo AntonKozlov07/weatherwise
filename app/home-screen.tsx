@@ -99,11 +99,6 @@ function LoadedHome({
         timeZone={bundle.location.timeZone}
         units={units}
         gradient={gradient}
-        dailyUnavailable={
-          bundle.sources.openMeteo.ok
-            ? undefined
-            : "The weekly forecast is unavailable right now."
-        }
       />
     </div>
   );

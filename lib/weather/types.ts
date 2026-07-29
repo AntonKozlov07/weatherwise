@@ -1,6 +1,6 @@
 /**
  * Domain types returned by the route handlers. These are the only weather
- * shapes the app renders; vendor payload shapes stay behind the clients.
+ * shapes the app renders; vendor payload shapes stay behind the client.
  *
  * Everything here is metric and canonical: Celsius, km/h, mm, km, hPa. The
  * units toggle is a formatting concern on the client, so switching it must not
@@ -11,14 +11,16 @@
  */
 
 /**
- * A condition as the source reported it. WeatherAPI and Open-Meteo use
- * different code vocabularies, so the system travels with the code and callers
- * map it: phase 3 maps to gradient buckets, phase 4 to Meteocons.
+ * A condition as OpenWeatherMap reported it.
+ *
+ * `code` is OWM's numeric `weather[].id`. The label comes from
+ * `lib/weather/openweather/conditions.ts`, not from the vendor's lowercase
+ * description, and travels with the code so a card does not have to look it up
+ * again (Decisions Log 41).
  */
 export type ConditionRef = {
-  system: "weatherapi" | "wmo";
   code: number;
-  text: string;
+  label: string;
   isDay: boolean;
 };
 
@@ -33,13 +35,13 @@ export type LocationSummary = {
 };
 
 export type Wind = {
-  /** km/h */
+  /** km/h, converted from the m/s OWM reports. */
   speed: number;
   /** km/h, null when the source did not report gusts. */
   gust: number | null;
   /** Degrees clockwise from north. */
   direction: number;
-  /** Compass abbreviation, e.g. "NNW". */
+  /** Compass abbreviation, derived from the degrees. */
   compass: string;
 };
 
@@ -74,7 +76,7 @@ export type HourlyPoint = {
   temperature: number;
   /** Celsius */
   feelsLike: number;
-  /** Percent */
+  /** Percent, converted from OWM's 0 to 1 probability. */
   precipitationChance: number;
   /** mm */
   precipitation: number;
@@ -85,7 +87,7 @@ export type HourlyPoint = {
 };
 
 export type DailyPoint = {
-  /** Local midnight for the day. */
+  /** Local midday for the day, as OWM stamps it. */
   date: number;
   condition: ConditionRef;
   /** Celsius */
@@ -96,32 +98,36 @@ export type DailyPoint = {
   precipitationChance: number;
   /** mm */
   precipitation: number;
-  /** Percent, daily mean. */
+  /** Percent */
   humidity: number;
   uvIndex: number;
   wind: Wind;
 };
 
 export type Astronomy = {
-  /**
-   * Epoch milliseconds, from Open-Meteo. The gradient anchors to these, so they
-   * have to be real instants rather than the "07:12 AM" strings WeatherAPI
-   * returns without an offset (Decisions Log 19).
-   */
+  /** Epoch milliseconds. The gradient anchors to these. */
   sunrise: number | null;
   sunset: number | null;
-  /** Local wall clock strings from WeatherAPI, for display only. */
-  moonrise: string | null;
-  moonset: string | null;
-  moonPhase: string | null;
-  /** Percent */
-  moonIllumination: number | null;
+  /** Epoch milliseconds, formatted for display in the location's zone. */
+  moonrise: number | null;
+  moonset: number | null;
+  /**
+   * OWM reports a 0 to 1 cycle position, where 0 and 1 are new and 0.5 is full.
+   * There is no illumination percentage, unlike the previous vendor
+   * (Decisions Log 42), so `moonPhaseLabel` is derived from this instead.
+   */
+  moonPhase: number | null;
+  moonPhaseLabel: string | null;
 };
 
 export type AirQuality = {
-  /** US EPA index, 1 to 6. */
-  epaIndex: number;
-  /** Micrograms per cubic metre. */
+  /**
+   * OWM's air quality index, 1 (Good) to 5 (Very Poor). Not the 1 to 6 US EPA
+   * scale the previous vendor used, and not the 0 to 500 AQI number
+   * (Decisions Log 42).
+   */
+  index: number;
+  /** Micrograms per cubic metre, as OWM reports them. */
   pm2_5: number;
   pm10: number;
   ozone: number;
@@ -134,24 +140,20 @@ export type WeatherAlert = {
   /** Stable enough to key a dismissal against. */
   id: string;
   event: string;
-  headline: string;
-  severity: string;
-  urgency: string;
-  areas: string;
+  /** OWM has no separate headline, so this is the issuing office. */
+  source: string;
   description: string;
-  instruction: string | null;
   effective: number | null;
   expires: number | null;
+  /** OWM's own categorisation. It carries no severity or urgency field. */
+  tags: string[];
 };
 
-export type SourceStatus =
-  | { ok: true }
-  | { ok: false; reason: string };
-
 /**
- * The whole payload the home screen needs. Daily can come back empty with
- * `sources.openMeteo.ok === false`: current conditions are still worth showing
- * when only the daily forecast failed.
+ * The whole payload the home screen needs, from one vendor.
+ *
+ * `airQuality` and the resolved place name come from separate OWM endpoints and
+ * are allowed to be absent: neither is worth failing a forecast over.
  */
 export type ForecastBundle = {
   location: LocationSummary;
@@ -161,7 +163,6 @@ export type ForecastBundle = {
   astronomy: Astronomy;
   airQuality: AirQuality | null;
   alerts: WeatherAlert[];
-  sources: { weatherapi: SourceStatus; openMeteo: SourceStatus };
   /** When this response was assembled, for "updated Nm ago". */
   fetchedAt: number;
 };

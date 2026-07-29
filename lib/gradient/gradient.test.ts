@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { conditionBucket } from "./conditions";
+import { conditionInfo } from "@/lib/weather/openweather/conditions";
+
 import { getGreetingGradient } from "./index";
 import { hexToOklch } from "./oklch";
 import { BASE_STOPS } from "./windows";
@@ -8,7 +9,7 @@ import { BASE_STOPS } from "./windows";
 const SUNRISE = new Date(Date.UTC(2026, 6, 28, 6, 0));
 const SUNSET = new Date(Date.UTC(2026, 6, 28, 21, 0));
 
-const CLEAR = 1000;
+const CLEAR = 800;
 
 function at(hours: number, minutes = 0): Date {
   return new Date(Date.UTC(2026, 6, 28, hours, minutes));
@@ -35,17 +36,17 @@ function movesToward(before: string, after: string, target: string): boolean {
 
 describe("conditionBucket", () => {
   it("maps each documented family", () => {
-    expect(conditionBucket(1000)).toBe("clear");
-    expect(conditionBucket(1003)).toBe("partlyCloudy");
-    expect(conditionBucket(1009)).toBe("overcast");
-    expect(conditionBucket(1189)).toBe("rain");
-    expect(conditionBucket(1219)).toBe("snow");
-    expect(conditionBucket(1276)).toBe("thunderstorm");
-    expect(conditionBucket(1135)).toBe("fog");
+    expect(conditionInfo(800).bucket).toBe("clear");
+    expect(conditionInfo(802).bucket).toBe("partlyCloudy");
+    expect(conditionInfo(804).bucket).toBe("overcast");
+    expect(conditionInfo(501).bucket).toBe("rain");
+    expect(conditionInfo(601).bucket).toBe("snow");
+    expect(conditionInfo(200).bucket).toBe("thunderstorm");
+    expect(conditionInfo(741).bucket).toBe("fog");
   });
 
   it("falls back to clear for unknown codes, leaving the time of day undiluted", () => {
-    expect(conditionBucket(4242)).toBe("clear");
+    expect(conditionInfo(4242).bucket).toBe("clear");
   });
 });
 
@@ -100,8 +101,8 @@ describe("getGreetingGradient", () => {
   });
 
   it("leaves a clear sky untinted", () => {
-    const clear = gradientAt(12, 0, 1000);
-    const partly = gradientAt(12, 0, 1003);
+    const clear = gradientAt(12, 0, 800);
+    const partly = gradientAt(12, 0, 802);
 
     expect(clear).not.toEqual(partly);
     expect(hexToOklch(clear.from).c).toBeGreaterThan(
@@ -110,29 +111,29 @@ describe("getGreetingGradient", () => {
   });
 
   it("drains chroma for partly cloudy and drains it further for overcast", () => {
-    const clear = hexToOklch(gradientAt(12, 0, 1000).from).c;
-    const partly = hexToOklch(gradientAt(12, 0, 1003).from).c;
-    const overcast = hexToOklch(gradientAt(12, 0, 1009).from).c;
+    const clear = hexToOklch(gradientAt(12, 0, 800).from).c;
+    const partly = hexToOklch(gradientAt(12, 0, 802).from).c;
+    const overcast = hexToOklch(gradientAt(12, 0, 804).from).c;
 
     expect(partly).toBeLessThan(clear);
     expect(overcast).toBeLessThan(partly);
   });
 
   it("pulls rain toward slate blue and snow toward pale ice", () => {
-    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 1189).from, "#5B7A99")).toBe(true);
-    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 1219).from, "#D9E8F5")).toBe(true);
+    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 501).from, "#5B7A99")).toBe(true);
+    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 601).from, "#D9E8F5")).toBe(true);
   });
 
   // Blending takes the short way round the hue circle, so midday amber reaches
   // violet by way of orange and magenta rather than by climbing through blue.
   // The test asserts it gets closer to violet, not which side it approaches from.
   it("pushes a thunderstorm violet", () => {
-    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 1276).from, "#6B5BA8")).toBe(true);
+    expect(movesToward(gradientAt(12).from, gradientAt(12, 0, 200).from, "#6B5BA8")).toBe(true);
   });
 
   it("flattens the lightness difference between stops in fog", () => {
     const clear = gradientAt(12);
-    const fog = gradientAt(12, 0, 1135);
+    const fog = gradientAt(12, 0, 741);
 
     const clearDelta = Math.abs(
       hexToOklch(clear.from).l - hexToOklch(clear.to).l,
@@ -144,7 +145,7 @@ describe("getGreetingGradient", () => {
 
   it("always returns two parseable hex colours", () => {
     for (let hour = 0; hour < 24; hour += 1) {
-      for (const code of [1000, 1003, 1009, 1189, 1219, 1276, 1135, 9999]) {
+      for (const code of [800, 802, 804, 501, 601, 200, 741, 9999]) {
         const gradient = gradientAt(hour, 0, code);
 
         expect(gradient.from).toMatch(/^#[0-9a-f]{6}$/);

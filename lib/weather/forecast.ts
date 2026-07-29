@@ -1,5 +1,9 @@
 import type { Coordinates } from "./coordinates";
-import { WeatherError } from "./errors";
+import {
+  fetchAirPollution,
+  fetchOneCall,
+  reverseGeocode,
+} from "./openweather/client";
 import {
   normalizeAirQuality,
   normalizeAlerts,
@@ -7,58 +11,48 @@ import {
   normalizeCurrent,
   normalizeDaily,
   normalizeHourly,
-  normalizeLocation,
 } from "./normalize";
-import { fetchDailyForecast } from "./open-meteo/client";
-import type { ForecastBundle, SourceStatus } from "./types";
-import { fetchForecast } from "./weatherapi/client";
-
-function reasonFor(error: unknown): string {
-  return error instanceof WeatherError
-    ? error.message
-    : "Could not load the daily forecast.";
-}
+import type { ForecastBundle } from "./types";
 
 /**
- * Fetches both sources concurrently and merges them.
+ * Assembles the home screen payload from OpenWeatherMap.
  *
- * The two failures are not equivalent. Without WeatherAPI there is no current
- * card and nothing worth rendering, so that propagates. Without Open-Meteo the
- * Weekly rail is empty but everything else still works, so that degrades: the
- * caller gets a 200 with `sources.openMeteo.ok === false` and decides what to
- * show for the missing piece.
+ * Three requests, because One Call covers neither place names nor air quality
+ * (Decisions Log 42). They run concurrently, and only One Call is load bearing:
+ * the other two resolve to null on failure, because a missing city name or AQI
+ * reading is not worth failing a forecast that otherwise loaded.
+ *
+ * One Call takes a single lat/lon per request and has no batch mode, so this is
+ * one call per location. Saved locations are fetched on demand rather than all
+ * at once, which keeps that linear cost off the home screen.
  */
 export async function getForecastBundle(
   { latitude, longitude }: Coordinates,
   now: number = Date.now(),
 ): Promise<ForecastBundle> {
-  const [weatherApiResult, openMeteoResult] = await Promise.allSettled([
-    fetchForecast(latitude, longitude),
-    fetchDailyForecast(latitude, longitude),
+  const [oneCall, place, air] = await Promise.all([
+    fetchOneCall(latitude, longitude),
+    reverseGeocode(latitude, longitude),
+    fetchAirPollution(latitude, longitude),
   ]);
 
-  if (weatherApiResult.status === "rejected") {
-    throw weatherApiResult.reason;
-  }
-
-  const forecast = weatherApiResult.value;
-  const daily =
-    openMeteoResult.status === "fulfilled" ? openMeteoResult.value : null;
-
-  const openMeteoStatus: SourceStatus =
-    openMeteoResult.status === "fulfilled"
-      ? { ok: true }
-      : { ok: false, reason: reasonFor(openMeteoResult.reason) };
-
   return {
-    location: normalizeLocation(forecast),
-    current: normalizeCurrent(forecast.current),
-    hourly: normalizeHourly(forecast, now),
-    daily: daily ? normalizeDaily(daily) : [],
-    astronomy: normalizeAstronomy(forecast, daily),
-    airQuality: normalizeAirQuality(forecast.current),
-    alerts: normalizeAlerts(forecast),
-    sources: { weatherapi: { ok: true }, openMeteo: openMeteoStatus },
+    location: {
+      // One Call returns coordinates only. Without the reverse lookup there is
+      // no name to show, so it falls back to the zone's city segment.
+      name: place?.name ?? oneCall.timezone.split("/").pop()?.replace(/_/g, " ") ?? "",
+      region: place?.region ?? "",
+      country: place?.country ?? "",
+      latitude: oneCall.lat,
+      longitude: oneCall.lon,
+      timeZone: oneCall.timezone,
+    },
+    current: normalizeCurrent(oneCall.current),
+    hourly: normalizeHourly(oneCall, now),
+    daily: normalizeDaily(oneCall),
+    astronomy: normalizeAstronomy(oneCall),
+    airQuality: normalizeAirQuality(air),
+    alerts: normalizeAlerts(oneCall),
     fetchedAt: now,
   };
 }

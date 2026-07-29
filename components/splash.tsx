@@ -46,6 +46,12 @@ export function Splash() {
   );
 
   useEffect(() => {
+    // React's lint rule warns about setting state synchronously in an effect,
+    // and it is right in general. It is wrong here: this is a one-time mount
+    // decision that has to resolve before the first paint. Deferring it to a
+    // timer or a microtask would show a frame of the app before the curtain
+    // drops, which is the exact thing the curtain exists to avoid.
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (sessionStorage.getItem(SEEN_KEY)) {
       setPhase("done");
       return;
@@ -71,6 +77,7 @@ export function Splash() {
       clearTimeout(toLeaving);
       clearTimeout(toDone);
     };
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   if (phase === "idle" || phase === "done") return null;

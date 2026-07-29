@@ -24,7 +24,14 @@ export function AlertBanner({ alerts }: { alerts: WeatherAlert[] }) {
     >
       <div className="min-w-0 flex-1">
         <p className="type-label text-[0.6875rem]">{active.event}</p>
-        <p className="mt-1 text-sm leading-snug">{active.headline}</p>
+        {/* OWM has no headline field, so the first sentence of the description
+            stands in for one (Decisions Log 42). */}
+        <p className="mt-1 line-clamp-3 text-sm leading-snug">
+          {active.description.split(/(?<=\.)\s/)[0] || active.event}
+        </p>
+        {active.source && (
+          <p className="mt-1 text-xs text-text-dim">{active.source}</p>
+        )}
       </div>
 
       <button

@@ -7,8 +7,9 @@ import type { Astronomy, ConditionRef } from "@/lib/weather/types";
 
 /**
  * Falls back to rough clock hours only when the real sun times are missing,
- * which happens when Open-Meteo failed. The gradient is meant to track the
- * actual sky, so this is a degraded mode, not an alternative.
+ * which One Call omits at latitudes with no sunrise or sunset that day. The
+ * gradient is meant to track the actual sky, so this is a degraded mode rather
+ * than an alternative.
  */
 function sunTimes(
   astronomy: Astronomy,
