@@ -1,16 +1,17 @@
+import { isWeatherTileLayer, owmLayerId } from "@/lib/map/layers";
 import { WeatherError, errorResponse, fetchVendor } from "@/lib/weather/errors";
 
 /**
- * GET /api/wind/{z}/{x}/{y}
+ * GET /api/tiles/{layer}/{z}/{x}/{y}
  *
- * Proxies OpenWeatherMap's Weather Maps 1.0 `wind_new` tiles.
+ * Proxies OpenWeatherMap Weather Maps 1.0 tiles. Replaces the RainViewer radar
+ * layer, so precipitation and wind now come from one vendor and one key.
  *
- * A tile proxy exists because the key cannot reach the browser, and a tile URL
- * template in a MapLibre style is very much in the browser. Deliberately 1.0:
- * their 2.0 endpoints are paid (CLAUDE.md).
+ * The proxy exists because the key cannot reach the browser, and a MapLibre
+ * tile template is very much in the browser.
  */
 
-const TILE_CACHE_SECONDS = 1_800;
+const TILE_CACHE_SECONDS = 600;
 
 function parseTileParam(value: string, max: number): number {
   const parsed = Number(value);
@@ -24,10 +25,14 @@ function parseTileParam(value: string, max: number): number {
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ z: string; x: string; y: string }> },
+  { params }: { params: Promise<{ layer: string; z: string; x: string; y: string }> },
 ): Promise<Response> {
   try {
-    const { z, x, y } = await params;
+    const { layer, z, x, y } = await params;
+
+    if (!isWeatherTileLayer(layer)) {
+      throw new WeatherError("bad_request", "Unknown map layer.");
+    }
 
     // Bounded before anything is fetched: these land in an upstream URL, and a
     // zoom of 30 would ask for a tile index in the billions.
@@ -39,13 +44,13 @@ export async function GET(
     const key = process.env.OPENWEATHER_API_KEY;
 
     if (!key) {
-      throw new WeatherError("config", "Wind layer is not configured.", {
+      throw new WeatherError("config", "Map layers are not configured.", {
         source: "OpenWeatherMap",
       });
     }
 
     const response = await fetchVendor(
-      `https://tile.openweathermap.org/map/wind_new/${zoom}/${tileX}/${tileY}.png?appid=${key}`,
+      `https://tile.openweathermap.org/map/${owmLayerId(layer)}/${zoom}/${tileX}/${tileY}.png?appid=${key}`,
       "OpenWeatherMap",
       { next: { revalidate: TILE_CACHE_SECONDS } },
     );
