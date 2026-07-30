@@ -342,6 +342,33 @@ Two things that verification turned up:
 - **The 1h timeline returns about 20 to 24 points, not 48.** `HOURLY_POINTS` caps at 48 and the rail asks for 24, so the Hourly rail is as long as the data allows and no longer. 4.0 pages its timelines and exposes `next`; following it would extend the window if that is ever wanted.
 - **A precipitation tile on a clear day is a near-empty PNG** (571 bytes against 18kB for wind). The overlay is legitimately invisible in clear weather, which is easy to mistake for a broken map. Worth remembering before debugging the map again.
 
+### Pick up here next session
+
+**Content is still cut off on device, and I have not reproduced it.** This has now
+failed several rounds of fixes, so start by getting evidence rather than
+attempting another fix.
+
+What is already ruled out, with measurements:
+
+- Not the safe-area insets alone. Simulating a 15 Pro Max (59 top, 34 bottom,
+  839px usable) at 430x932 shows Home, all three onboarding steps, Explore and
+  Settings fitting with nothing clipped and every primary button visible.
+- Not `overflow: hidden` any more. `.app-shell` scrolls vertically as a safety
+  net, so nothing should be permanently unreachable even if it does overflow.
+- Not `min-h-dvh`. Both remaining uses (onboarding, the map loading placeholder)
+  were converted to `.screen`.
+
+The gap is that every measurement here runs in a browser with zero real insets
+and no compositing, so it cannot see what the device sees.
+
+**Ask for, before changing anything:** a screenshot of the cut-off, which screen
+it is on, and whether the region can be scrolled to. That distinguishes a layout
+overflow from something painting outside its box, which need opposite fixes.
+
+Also worth confirming he has deleted and re-added the home screen app: an old
+service worker keeps serving cached assets, and that already caused one round of
+"still not fixed" on the wordmark.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
