@@ -55,9 +55,21 @@ export async function GET(
       { next: { revalidate: TILE_CACHE_SECONDS } },
     );
 
-    return new Response(response.body, {
+    // Buffered rather than streamed. `response.body` can be null on a response
+    // served out of Next's fetch cache, and a null body here would hand MapLibre
+    // an empty tile with a 200 status: an invisible failure.
+    const image = await response.arrayBuffer();
+
+    if (image.byteLength === 0) {
+      throw new WeatherError("upstream", "Map tile came back empty.", {
+        source: "OpenWeatherMap",
+      });
+    }
+
+    return new Response(image, {
       headers: {
         "Content-Type": response.headers.get("Content-Type") ?? "image/png",
+        "Content-Length": String(image.byteLength),
         "Cache-Control": `public, max-age=${TILE_CACHE_SECONDS}`,
       },
     });
