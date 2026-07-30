@@ -14,9 +14,9 @@ const WeatherMap = dynamic(
   () => import("./weather-map").then((module) => module.WeatherMap),
   {
     ssr: false,
-    loading: () => (
-      <div className="ww-shimmer min-h-dvh w-full" aria-label="Loading map" />
-    ),
+    // `.screen`, not `min-h-dvh`: the latter is taller than the shell's content
+    // box once safe-area insets are applied, so it overflowed.
+    loading: () => <div className="screen ww-shimmer" aria-label="Loading map" />,
   },
 );
 

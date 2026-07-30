@@ -163,7 +163,13 @@
     height: 100dvh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* Horizontal never scrolls. Vertical is a safety net, not a design: every
+       screen is built to fit, but a child that overflows anyway must end up
+       scrollable rather than clipped. Unreachable buttons are worse than a
+       scrollbar, and `hidden` here hid onboarding's Continue button
+       (Decisions Log 52). */
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);

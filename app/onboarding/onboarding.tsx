@@ -52,10 +52,19 @@ export function Onboarding() {
   };
 
   return (
-    <main className="flex min-h-dvh flex-col justify-between gap-8 px-6 py-10">
-      <div key={step} className="ww-rise flex flex-1 flex-col gap-8">
+    // `.screen` fills what the shell leaves, rather than `min-h-dvh` which is
+    // the whole viewport and therefore taller than the shell's content box once
+    // the safe-area insets are applied. That overflow is what pushed the
+    // Continue button off the bottom of the screen (Decisions Log 52).
+    <main className="screen px-6">
+      {/* Steps scroll; the dots and buttons below never do, so Continue is
+          always reachable no matter how short the phone is. */}
+      <div
+        key={step}
+        className="screen-scroll ww-rise flex min-h-0 flex-col gap-8 py-8"
+      >
         {step === 0 && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+          <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-8 text-center">
             <Image
               src="/brand/Logo_Larger_Version.svg"
               alt=""
@@ -144,7 +153,7 @@ export function Onboarding() {
         )}
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex shrink-0 flex-col gap-6 pb-6 pt-4">
         <Dots step={step} />
 
         <div className="flex items-center gap-3">

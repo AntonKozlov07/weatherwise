@@ -9,7 +9,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
 import { usePreferences } from "@/components/preferences-provider";
+import { formatTime } from "@/lib/format";
 import { DEFAULT_LOCATION } from "@/lib/location";
+import { radarTileUrl, type RadarTimeline } from "@/lib/map/radar";
 import {
   MAX_TILE_ZOOM,
   TILE_SIZE,
@@ -63,6 +65,9 @@ const OVERLAY_LAYER = "weather-overlay-layer";
 
 /** Long enough to be a real failure rather than a slow connection. */
 const LOAD_TIMEOUT_MS = 15_000;
+
+/** Slow enough to read the movement, fast enough to see the whole loop. */
+const FRAME_MS = 500;
 
 /**
  * Runs a style mutation once the style can accept one.
@@ -119,6 +124,12 @@ export function WeatherMap() {
 
   const [layer, setLayer] = useState<Layer>("precipitation");
   const [opacity, setOpacity] = useState(0.7);
+
+  // Radar timelapse. Precipitation is the only layer with a time dimension.
+  const [timeline, setTimeline] = useState<RadarTimeline | null>(null);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [radarError, setRadarError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -228,6 +239,32 @@ export function WeatherMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Radar frame index, fetched once. Only precipitation animates.
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/radar", { signal: controller.signal });
+
+        if (!response.ok) {
+          setRadarError("Radar frames are unavailable.");
+          return;
+        }
+
+        const data = (await response.json()) as RadarTimeline;
+        setTimeline(data);
+        setFrameIndex(data.nowIndex);
+      } catch {
+        if (!controller.signal.aborted) {
+          setRadarError("Radar frames are unavailable.");
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, []);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -238,14 +275,27 @@ export function WeatherMap() {
 
       if (layer === "off") return;
 
-      map.addSource(OVERLAY_SOURCE, {
-        type: "raster",
-        tiles: [tileTemplate(window.location.origin, layer)],
-        tileSize: TILE_SIZE,
-        maxzoom: MAX_TILE_ZOOM,
-        attribution: "OpenWeatherMap",
-      });
+      // Precipitation comes from RainViewer so it can be scrubbed through time.
+      // Wind is a single OpenWeatherMap snapshot; it has no frames.
+      const source =
+        layer === "precipitation" && timeline
+          ? {
+              tiles: [radarTileUrl(timeline, timeline.frames[frameIndex] ?? timeline.frames[0])],
+              tileSize: 512,
+              attribution: "RainViewer",
+            }
+          : layer === "wind"
+            ? {
+                tiles: [tileTemplate(window.location.origin, "wind")],
+                tileSize: TILE_SIZE,
+                maxzoom: MAX_TILE_ZOOM,
+                attribution: "OpenWeatherMap",
+              }
+            : null;
 
+      if (!source) return;
+
+      map.addSource(OVERLAY_SOURCE, { type: "raster", ...source });
       map.addLayer({
         id: OVERLAY_LAYER,
         type: "raster",
@@ -253,7 +303,19 @@ export function WeatherMap() {
         paint: { "raster-opacity": opacity },
       });
     });
-  }, [ready, layer, opacity]);
+  }, [ready, layer, opacity, timeline, frameIndex]);
+
+  // Autoplay is never automatic: the quality bar says the radar must not play on
+  // its own, and it is also off under reduced motion.
+  useEffect(() => {
+    if (!playing || !timeline) return;
+
+    const timer = setInterval(() => {
+      setFrameIndex((current) => (current + 1) % timeline.frames.length);
+    }, FRAME_MS);
+
+    return () => clearInterval(timer);
+  }, [playing, timeline]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -340,6 +402,67 @@ export function WeatherMap() {
             </label>
           )}
         </div>
+
+        {/* Timelapse scrubber, above the floating nav. */}
+        {layer === "precipitation" && timeline && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[9.5rem] px-4">
+            <div className="card-floating pointer-events-auto flex items-center gap-3 rounded-card px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setPlaying((current) => !current)}
+                aria-label={playing ? "Pause radar" : "Play radar"}
+                className="ww-press shrink-0 rounded-pill bg-surface-raised p-2"
+              >
+                {playing ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5.5v13l11-6.5-11-6.5Z" />
+                  </svg>
+                )}
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={timeline.frames.length - 1}
+                  step={1}
+                  value={frameIndex}
+                  onChange={(event) => {
+                    setPlaying(false);
+                    setFrameIndex(Number(event.target.value));
+                  }}
+                  aria-label="Radar time"
+                  className="w-full accent-accent"
+                />
+                <p className="mt-1 text-xs text-text-dim">
+                  {(() => {
+                    const frame = timeline.frames[frameIndex];
+                    if (!frame) return "";
+                    const label = formatTime(
+                      frame.time * 1000,
+                      Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    );
+                    return frame.forecast ? `${label} · forecast` : label;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {layer === "precipitation" && radarError && !timeline && (
+          <p
+            role="status"
+            className="card-floating pointer-events-auto absolute inset-x-4 bottom-[9.5rem] rounded-pill px-4 py-2 text-sm text-text-dim"
+          >
+            {radarError}
+          </p>
+        )}
 
         {/* Sits above the floating nav rather than behind it. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-[6.5rem] p-4">
