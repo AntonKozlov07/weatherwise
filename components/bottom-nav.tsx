@@ -33,7 +33,11 @@ export function BottomNav() {
       // No safe-area inset here. `.app-shell` already applies it, and adding it
       // again counted the home indicator twice, leaving a band of dead space
       // below the nav on any device that reports one (Decisions Log 47).
-      className="sticky bottom-0 mt-auto px-[1.875rem] pb-3 pt-3"
+      // No bottom padding of its own either. The shell's safe-area inset is the
+      // only gap left below the bar, which is the minimum that keeps a tappable
+      // control clear of the home indicator. That remaining band cannot be
+      // reclaimed for something interactive.
+      className="sticky bottom-0 mt-auto px-[1.875rem] pb-0 pt-3"
     >
       <ul className="card-floating flex items-center justify-around rounded-card py-6">
         {ITEMS.map((item) => {

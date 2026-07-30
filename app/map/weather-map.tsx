@@ -1,6 +1,10 @@
 "use client";
 
-import { Map as MapLibreMap, NavigationControl } from "maplibre-gl";
+import {
+  Map as MapLibreMap,
+  NavigationControl,
+  type StyleSpecification,
+} from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
@@ -19,9 +23,40 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 type Layer = WeatherTileLayer | "off";
 
-/** CARTO Dark Matter, free and already the right value range for this design. */
-const BASEMAP_STYLE =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+/**
+ * CARTO Dark Matter as raster tiles, declared inline.
+ *
+ * This was a hosted vector style. Vector needs a style fetch, a sprite fetch, a
+ * glyph fetch, and tile parsing in a Web Worker, and on device the style parsed
+ * while nothing ever painted, which points at that pipeline rather than at
+ * WebGL or the container. Raster removes all of it: no external style document
+ * and no worker-side geometry work, just images drawn to the canvas
+ * (Decisions Log 51).
+ *
+ * Same basemap, same palette. Labels are baked into the tiles instead of being
+ * rendered from fonts, which is the only visible difference.
+ */
+const BASEMAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    basemap: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "CARTO, OpenStreetMap",
+    },
+  },
+  layers: [
+    // Painted under everything, so the canvas is never transparent even before
+    // the first tile arrives.
+    { id: "background", type: "background", paint: { "background-color": "#1E2024" } },
+    { id: "basemap", type: "raster", source: "basemap" },
+  ],
+};
 
 const OVERLAY_SOURCE = "weather-overlay";
 const OVERLAY_LAYER = "weather-overlay-layer";
@@ -165,10 +200,17 @@ export function WeatherMap() {
     const observer = new ResizeObserver(() => map.resize());
     observer.observe(containerRef.current);
 
-    // Nobody should watch a spinner with no idea whether it is working.
+    // Nobody should watch a spinner with no idea whether it is working. Cleared
+    // the moment the style parses: previously it fired regardless, so a map that
+    // had loaded fine still showed "taking too long" fifteen seconds later.
     const timeout = setTimeout(() => {
+      if (map.isStyleLoaded() || map.loaded()) return;
       setStyleError((current) => current ?? "The map is taking too long to load.");
     }, LOAD_TIMEOUT_MS);
+
+    const cancelTimeout = () => clearTimeout(timeout);
+    map.on("load", cancelTimeout);
+    map.on("idle", cancelTimeout);
 
     return () => {
       clearTimeout(timeout);
