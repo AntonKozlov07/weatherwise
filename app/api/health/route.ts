@@ -1,5 +1,5 @@
 import { getForecastBundle } from "@/lib/weather/forecast";
-import { activeOneCallVersion, ONE_CALL_VERSIONS } from "@/lib/weather/openweather/client";
+import { ONE_CALL_VERSION } from "@/lib/weather/openweather/client";
 import { WeatherError } from "@/lib/weather/errors";
 
 /**
@@ -29,7 +29,7 @@ export async function GET(): Promise<Response> {
 
     weather = {
       ok: true,
-      oneCallVersion: activeOneCallVersion(),
+      oneCallVersion: ONE_CALL_VERSION,
       place: bundle.location.name,
       timeZone: bundle.location.timeZone,
       current: {
@@ -47,7 +47,7 @@ export async function GET(): Promise<Response> {
   } catch (error) {
     weather = {
       ok: false,
-      versionsTried: [...ONE_CALL_VERSIONS],
+      oneCallVersion: ONE_CALL_VERSION,
       kind: error instanceof WeatherError ? error.kind : "unknown",
       message:
         error instanceof WeatherError ? error.message : "Unexpected failure.",

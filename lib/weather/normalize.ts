@@ -1,10 +1,10 @@
 import { conditionInfo } from "./openweather/conditions";
 import type {
-  RawAlert,
-  RawCurrent,
-  RawDay,
-  RawHour,
-  RawOneCallResponse,
+  RawAlertDetail,
+  RawCurrentRecord,
+  RawDayRecord,
+  RawEnvelope,
+  RawHourRecord,
   RawWeather,
 } from "./openweather/raw";
 import type {
@@ -62,7 +62,7 @@ function normalizeWind(
  * Day or night comes from the icon suffix, `01d` against `01n`.
  *
  * OWM has no `is_day` field, and this is more reliable than comparing against
- * sunrise and sunset, which are only present on some blocks (Decisions Log 42).
+ * sunrise and sunset, which are only present on some endpoints.
  */
 function normalizeCondition(weather: RawWeather[] | undefined): ConditionRef {
   const entry = weather?.[0];
@@ -80,7 +80,15 @@ function visibilityKm(metres: number | undefined): number {
   return typeof metres === "number" ? metres / 1000 : 0;
 }
 
-export function normalizeCurrent(raw: RawCurrent): CurrentConditions {
+/** Daily rain and snow are totals; hourly are `{ "1h": mm }` buckets. */
+function precipitationMm(
+  value: { "1h"?: number } | number | undefined,
+): number {
+  if (typeof value === "number") return value;
+  return value?.["1h"] ?? 0;
+}
+
+export function normalizeCurrent(raw: RawCurrentRecord): CurrentConditions {
   return {
     observedAt: toMillis(raw.dt),
     condition: normalizeCondition(raw.weather),
@@ -91,22 +99,22 @@ export function normalizeCurrent(raw: RawCurrent): CurrentConditions {
     pressure: raw.pressure,
     visibility: visibilityKm(raw.visibility),
     cloudCover: raw.clouds,
-    // Rain and snow are reported separately and only when falling.
-    precipitation: (raw.rain?.["1h"] ?? 0) + (raw.snow?.["1h"] ?? 0),
+    // The current endpoint carries no rain or snow field at all, unlike hourly.
+    precipitation: 0,
     uvIndex: raw.uvi,
     wind: normalizeWind(raw.wind_speed, raw.wind_deg, raw.wind_gust),
   };
 }
 
-function normalizeHour(raw: RawHour): HourlyPoint {
+function normalizeHour(raw: RawHourRecord): HourlyPoint {
   return {
     time: toMillis(raw.dt),
     condition: normalizeCondition(raw.weather),
     temperature: raw.temp,
     feelsLike: raw.feels_like,
     // OWM reports probability as 0 to 1; the app shows a percentage.
-    precipitationChance: Math.round(raw.pop * 100),
-    precipitation: (raw.rain?.["1h"] ?? 0) + (raw.snow?.["1h"] ?? 0),
+    precipitationChance: Math.round((raw.pop ?? 0) * 100),
+    precipitation: precipitationMm(raw.rain) + precipitationMm(raw.snow),
     humidity: raw.humidity,
     uvIndex: raw.uvi,
     wind: normalizeWind(raw.wind_speed, raw.wind_deg, raw.wind_gust),
@@ -114,31 +122,32 @@ function normalizeHour(raw: RawHour): HourlyPoint {
 }
 
 /**
- * OWM's hourly block already starts at the current hour, so unlike the previous
- * vendor there is nothing in the past to trim. It is still filtered, because a
- * cached payload served offline can be hours old.
+ * The timeline already starts at the current hour, so unlike the previous vendor
+ * there is nothing in the past to trim. It is still filtered, because a cached
+ * payload served offline can be hours old.
  */
 export function normalizeHourly(
-  raw: RawOneCallResponse,
+  envelope: RawEnvelope<RawHourRecord> | null,
   now: number,
 ): HourlyPoint[] {
   const currentHour = now - (now % 3_600_000);
 
-  return (raw.hourly ?? [])
+  return (envelope?.data ?? [])
     .map(normalizeHour)
     .filter((hour) => hour.time >= currentHour)
     .slice(0, HOURLY_POINTS);
 }
 
-export function normalizeDaily(raw: RawOneCallResponse): DailyPoint[] {
-  return (raw.daily ?? []).map((day: RawDay) => ({
+export function normalizeDaily(
+  envelope: RawEnvelope<RawDayRecord> | null,
+): DailyPoint[] {
+  return (envelope?.data ?? []).map((day) => ({
     date: toMillis(day.dt),
     condition: normalizeCondition(day.weather),
     high: day.temp.max,
     low: day.temp.min,
-    precipitationChance: Math.round(day.pop * 100),
-    // Daily rain and snow are already totals in mm, not hourly buckets.
-    precipitation: (day.rain ?? 0) + (day.snow ?? 0),
+    precipitationChance: Math.round((day.pop ?? 0) * 100),
+    precipitation: precipitationMm(day.rain) + precipitationMm(day.snow),
     humidity: day.humidity,
     uvIndex: day.uvi,
     wind: normalizeWind(day.wind_speed, day.wind_deg, day.wind_gust),
@@ -162,18 +171,21 @@ export function moonPhaseLabel(phase: number): string {
   return "Waning Crescent";
 }
 
-export function normalizeAstronomy(raw: RawOneCallResponse): Astronomy {
-  const today = raw.daily?.[0];
-
-  // Sun times sit on both blocks; current is preferred because it is always
-  // present, while the daily block can be excluded.
-  const sunrise = raw.current.sunrise ?? today?.sunrise;
-  const sunset = raw.current.sunset ?? today?.sunset;
+/**
+ * Sun times sit on both the current record and the daily timeline; moon data
+ * only on daily. Current is preferred for the sun because it is the one request
+ * that always runs.
+ */
+export function normalizeAstronomy(
+  current: RawCurrentRecord,
+  daily: RawEnvelope<RawDayRecord> | null,
+): Astronomy {
+  const today = daily?.data?.[0];
   const phase = today?.moon_phase;
 
   return {
-    sunrise: toMillisOrNull(sunrise),
-    sunset: toMillisOrNull(sunset),
+    sunrise: toMillisOrNull(current.sunrise ?? today?.sunrise),
+    sunset: toMillisOrNull(current.sunset ?? today?.sunset),
     moonrise: toMillisOrNull(today?.moonrise),
     moonset: toMillisOrNull(today?.moonset),
     moonPhase: typeof phase === "number" ? phase : null,
@@ -198,24 +210,20 @@ export function normalizeAirQuality(
 }
 
 /**
- * OWM alerts carry no identifier. The banner is dismissible and the dismissal
- * has to survive a refetch, so the key is built from the fields that identify
- * the alert rather than its position in the array.
+ * Alerts arrive already resolved from the alert endpoint. 4.0 gives each one a
+ * real id, so unlike the previous vendor the dismissal key needs no synthesising.
  */
-function alertId(raw: RawAlert): string {
-  return [raw.event ?? "", raw.start ?? "", raw.sender_name ?? ""].join("|");
-}
-
-export function normalizeAlerts(raw: RawOneCallResponse): WeatherAlert[] {
-  return (raw.alerts ?? [])
+export function normalizeAlerts(raw: RawAlertDetail[]): WeatherAlert[] {
+  return raw
     .filter((alert) => Boolean(alert.event))
     .map((alert) => ({
-      id: alertId(alert),
+      id: alert.id ?? `${alert.event}|${alert.start ?? ""}`,
       event: alert.event ?? "Weather alert",
       source: alert.sender_name ?? "",
       description: alert.description ?? "",
       effective: toMillisOrNull(alert.start),
       expires: toMillisOrNull(alert.end),
-      tags: alert.tags ?? [],
+      // 4.0 dropped the tags field the previous shape carried.
+      tags: [],
     }));
 }

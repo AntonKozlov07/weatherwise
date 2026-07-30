@@ -1,41 +1,30 @@
 import { WeatherError, fetchVendor } from "../errors";
 import type { CityMatch } from "../types";
 import {
+  isAlertDetail,
+  isCurrentResponse,
+  isDailyResponse,
   isGeocodeResponse,
-  isOneCallResponse,
+  isHourlyResponse,
   type RawAirPollution,
-  type RawOneCallResponse,
+  type RawAlertDetail,
+  type RawCurrentRecord,
+  type RawDayRecord,
+  type RawEnvelope,
+  type RawHourRecord,
 } from "./raw";
 
 /**
- * OpenWeatherMap client. One vendor for every weather field the app shows.
+ * OpenWeatherMap client. One key for every weather field in the app.
  *
- * Three endpoints, because One Call does not cover everything WeatherAPI did:
- *
- *  - One Call: current, hourly, daily, alerts
- *  - Geocoding: city search and place names, which One Call omits entirely
- *  - Air Pollution: AQI, which One Call also omits
- *
- * All three take the same key. Geocoding and Air Pollution are free tier.
+ * One Call 4.0 splits the forecast across endpoints rather than returning it in
+ * one payload, so a home screen costs three weather requests plus one per active
+ * alert. Two free companion APIs fill the gaps One Call does not cover:
+ * Geocoding for city search and place names, Air Pollution for AQI.
  */
 
-/**
- * One Call versions to try, in order of preference.
- *
- * Resolved at runtime rather than hardcoded, because the version an account can
- * reach cannot be determined without calling it: OWM answers 401 at the gateway
- * for every version, including ones that do not exist. Trying in order means
- * setting the key is the only configuration step, with no code edit if the
- * account lands on a different version (Decisions Log 44).
- */
-const ONE_CALL_VERSIONS = ["4.0", "3.0"] as const;
-
-/**
- * Cached per server instance after the first success, so the fallback costs one
- * extra request once rather than on every forecast.
- */
-let resolvedVersion: string | null = null;
-
+const ONE_CALL_VERSION = "4.0";
+const ONE_CALL_BASE = `https://api.openweathermap.org/data/${ONE_CALL_VERSION}/onecall`;
 const GEOCODE_URL = "https://api.openweathermap.org/geo/1.0";
 const AIR_POLLUTION_URL = "https://api.openweathermap.org/data/2.5/air_pollution";
 
@@ -43,6 +32,15 @@ const AIR_POLLUTION_URL = "https://api.openweathermap.org/data/2.5/air_pollution
 const REVALIDATE_SECONDS = 300;
 /** Place names essentially never change. */
 const GEOCODE_REVALIDATE_SECONDS = 86_400;
+/** Alert text does not change once issued; the id changes instead. */
+const ALERT_REVALIDATE_SECONDS = 1_800;
+
+/**
+ * Alerts cost one request each. A location under a genuine multi-hazard warning
+ * rarely has more than a couple, and the banner shows one at a time, so this
+ * bounds the fan-out without hiding anything the user would have seen.
+ */
+const MAX_ALERTS = 3;
 
 function apiKey(): string {
   const key = process.env.OPENWEATHER_API_KEY;
@@ -56,6 +54,15 @@ function apiKey(): string {
   return key;
 }
 
+function weatherParams(latitude: number, longitude: number): URLSearchParams {
+  return new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+    units: "metric",
+    appid: apiKey(),
+  });
+}
+
 async function getJson(url: string, revalidate: number): Promise<unknown> {
   try {
     const response = await fetchVendor(url, "OpenWeatherMap", {
@@ -64,98 +71,112 @@ async function getJson(url: string, revalidate: number): Promise<unknown> {
 
     return await response.json();
   } catch (error) {
-    // A rejected key is our misconfiguration, not a blip worth retrying. One
-    // Call also 401s when the account has no One Call subscription, which is
-    // the same class of problem and needs the same non-retryable treatment.
-    if (
-      error instanceof WeatherError &&
-      (error.httpStatus === 401 || error.httpStatus === 403)
-    ) {
-      throw new WeatherError(
-        "config",
-        "Weather service rejected the API key. Check that the account has a One Call subscription.",
-        { source: "OpenWeatherMap", cause: error },
-      );
+    if (error instanceof WeatherError) {
+      // A rejected key is our misconfiguration, not a blip worth retrying. One
+      // Call also 401s when the account has no One Call subscription, which
+      // needs the same non-retryable treatment and the same explanation.
+      if (error.httpStatus === 401 || error.httpStatus === 403) {
+        throw new WeatherError(
+          "config",
+          "Weather service rejected the API key. Check that the account has a One Call 4.0 subscription.",
+          { source: "OpenWeatherMap", cause: error },
+        );
+      }
+
+      // A 404 on a One Call path means the endpoint shape is wrong, which is a
+      // code problem, not a transient one. Say so rather than blaming the network.
+      if (error.httpStatus === 404 && url.startsWith(ONE_CALL_BASE)) {
+        throw new WeatherError(
+          "config",
+          `One Call ${ONE_CALL_VERSION} did not recognise that endpoint.`,
+          { source: "OpenWeatherMap", cause: error },
+        );
+      }
     }
 
     throw error;
   }
 }
 
-async function tryOneCall(
-  version: string,
+function malformed(what: string): WeatherError {
+  return new WeatherError(
+    "upstream",
+    `${what} came back in an unexpected shape for One Call ${ONE_CALL_VERSION}.`,
+    { source: "OpenWeatherMap" },
+  );
+}
+
+export async function fetchCurrent(
   latitude: number,
   longitude: number,
-): Promise<RawOneCallResponse> {
-  const params = new URLSearchParams({
-    lat: String(latitude),
-    lon: String(longitude),
-    units: "metric",
-    // Minutely is not rendered anywhere, so it is excluded rather than fetched
-    // and thrown away.
-    exclude: "minutely",
-    appid: apiKey(),
-  });
-
+): Promise<RawEnvelope<RawCurrentRecord>> {
   const payload = await getJson(
-    `https://api.openweathermap.org/data/${version}/onecall?${params.toString()}`,
+    `${ONE_CALL_BASE}/current?${weatherParams(latitude, longitude)}`,
     REVALIDATE_SECONDS,
   );
 
-  if (!isOneCallResponse(payload)) {
-    throw new WeatherError(
-      "upstream",
-      `Weather data came back in an unexpected shape for One Call ${version}.`,
-      { source: "OpenWeatherMap" },
-    );
-  }
+  if (!isCurrentResponse(payload)) throw malformed("Current conditions");
 
   return payload;
 }
 
-export async function fetchOneCall(
+export async function fetchHourly(
   latitude: number,
   longitude: number,
-): Promise<RawOneCallResponse> {
-  // Once a version has worked, stick to it. Only the first request pays for the
-  // fallback.
-  const candidates = resolvedVersion ? [resolvedVersion] : ONE_CALL_VERSIONS;
-
-  let lastError: unknown;
-
-  for (const version of candidates) {
-    try {
-      const payload = await tryOneCall(version, latitude, longitude);
-      resolvedVersion = version;
-      return payload;
-    } catch (error) {
-      lastError = error;
-
-      // A missing key is the same failure on every version, so stop rather than
-      // making the same doomed request again.
-      if (error instanceof WeatherError && error.kind === "config" && !error.httpStatus) {
-        throw error;
-      }
-    }
-  }
-
-  // Every version failed. A rejected key on all of them almost always means the
-  // account has no One Call subscription, so the message says so.
-  if (lastError instanceof WeatherError && lastError.kind === "config") {
-    throw lastError;
-  }
-
-  throw (
-    lastError ??
-    new WeatherError("upstream", "Could not reach the weather service.", {
-      source: "OpenWeatherMap",
-    })
+): Promise<RawEnvelope<RawHourRecord>> {
+  const payload = await getJson(
+    `${ONE_CALL_BASE}/timeline/1h?${weatherParams(latitude, longitude)}`,
+    REVALIDATE_SECONDS,
   );
+
+  if (!isHourlyResponse(payload)) throw malformed("The hourly forecast");
+
+  return payload;
 }
 
-/** Which One Call version is in use, once one has answered. For diagnostics. */
-export function activeOneCallVersion(): string | null {
-  return resolvedVersion;
+export async function fetchDaily(
+  latitude: number,
+  longitude: number,
+): Promise<RawEnvelope<RawDayRecord>> {
+  const payload = await getJson(
+    `${ONE_CALL_BASE}/timeline/1day?${weatherParams(latitude, longitude)}`,
+    REVALIDATE_SECONDS,
+  );
+
+  if (!isDailyResponse(payload)) throw malformed("The daily forecast");
+
+  return payload;
+}
+
+/**
+ * Resolves alert ids to their text.
+ *
+ * Failures are swallowed per alert: a banner that cannot be filled in is worth
+ * losing, a forecast is not.
+ */
+export async function fetchAlerts(ids: string[]): Promise<RawAlertDetail[]> {
+  const unique = [...new Set(ids)].slice(0, MAX_ALERTS);
+
+  const settled = await Promise.all(
+    unique.map(async (id): Promise<RawAlertDetail | null> => {
+      try {
+        const payload = await getJson(
+          `${ONE_CALL_BASE}/alert/${encodeURIComponent(id)}?appid=${apiKey()}`,
+          ALERT_REVALIDATE_SECONDS,
+        );
+
+        if (!isAlertDetail(payload)) return null;
+
+        // The id from the weather record wins: it is what the dismissal is
+        // keyed on, whether or not the detail payload echoes it back.
+        return { ...payload, id };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return settled.filter((alert): alert is RawAlertDetail => alert !== null);
 }
 
 /**
@@ -182,7 +203,6 @@ export async function searchCities(query: string): Promise<CityMatch[]> {
   }
 
   return payload.map((match, index) => ({
-    // Geocoding has no stable id, so one is derived from the coordinates.
     id: index,
     name: match.name,
     region: match.state ?? "",
@@ -259,4 +279,4 @@ export async function fetchAirPollution(
   }
 }
 
-export { ONE_CALL_VERSIONS };
+export { ONE_CALL_VERSION };
