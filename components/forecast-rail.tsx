@@ -115,7 +115,7 @@ function CardBody({ card, units }: { card: CardContent; units: Units }) {
       </p>
 
       <div className="mt-2 flex items-start justify-between gap-2">
-        <p className="type-numeric text-[2.75rem] leading-none">
+        <p className="type-numeric text-[clamp(2.1rem,11vw,2.75rem)] leading-none">
           {formatTemperature(card.primary, units)}
           <span className="type-degree">°{temperatureUnit(units)}</span>
           {card.secondary !== undefined && (

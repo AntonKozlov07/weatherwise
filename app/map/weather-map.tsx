@@ -182,10 +182,10 @@ export function WeatherMap() {
   }, [ready, opacity]);
 
   return (
-    <div className="screen">
-      {/* `min-h-0` matters: without it this flex child resolves to zero height
-          and MapLibre renders into nothing at all. */}
-      <div className="relative min-h-0 flex-1">
+    // Full screen, not a pane above the nav. The map fills the shell and the
+    // nav floats over it, so the canvas runs edge to edge (Decisions Log 49).
+    <div className="screen relative">
+      <div className="absolute inset-0">
         {/* Sized directly rather than with `absolute inset-0`: maplibre-gl.css
             sets `position: relative` on `.maplibregl-map` and loads after
             Tailwind, so absolute positioning was overridden and the container
@@ -259,7 +259,8 @@ export function WeatherMap() {
           )}
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+        {/* Sits above the floating nav rather than behind it. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-[6.5rem] p-4">
           <p className="pointer-events-auto self-start rounded-pill bg-black/50 px-3 py-1 text-[0.6875rem] text-text-dim">
             <a
               href="https://openweathermap.org/"
@@ -283,7 +284,10 @@ export function WeatherMap() {
         </div>
       </div>
 
-      <BottomNav />
+      {/* Above the map, and pushed to the bottom of the shell. */}
+      <div className="relative z-10 mt-auto">
+        <BottomNav />
+      </div>
     </div>
   );
 }

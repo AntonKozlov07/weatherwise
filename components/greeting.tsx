@@ -39,7 +39,9 @@ export function Greeting({ name, gradient, timeZone }: Props) {
 
   return (
     <h1
-      className="type-heading text-[2.125rem] leading-[1.15]"
+      // Scales with the viewport between an SE and a Pro Max rather than
+      // sitting at one size and wrapping badly at the extremes.
+      className="type-heading text-[clamp(1.6rem,8vw,2.25rem)] leading-[1.15]"
       style={{
         backgroundImage: `linear-gradient(90deg, ${gradient.from}, ${gradient.to})`,
         backgroundClip: "text",

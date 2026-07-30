@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AlertBanner } from "@/components/alert-banner";
 import { AppHeader } from "@/components/app-header";
@@ -52,7 +52,10 @@ function LoadedHome({
   const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    // `justify-between` spreads leftover height across every gap instead of
+    // dumping it into one spacer. A single growing spacer looked fine at 800px
+    // tall and opened a 267px hole at 956 (Decisions Log 50).
+    <div className="flex min-h-full flex-1 flex-col justify-between gap-4">
       {staleSince !== null && <OfflineBanner staleSince={staleSince} />}
 
       {alertBanners && bundle.alerts.length > 0 && (
@@ -81,10 +84,6 @@ function LoadedHome({
         />
       </div>
 
-      {/* The open space the Figma's arrow element used to occupy. It absorbs
-          whatever height is left, so the screen fills exactly once. */}
-      <div className="min-h-3 flex-1" />
-
       <div
         className="ww-rise"
         style={{ "--rise-delay": "120ms" } as React.CSSProperties}
@@ -108,6 +107,7 @@ export function HomeScreen() {
   const router = useRouter();
   const preferences = usePreferences();
   const [mode, setMode] = useState<RailMode>("hourly");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const saved = activeLocation(preferences);
   const coordinates = saved
@@ -126,7 +126,7 @@ export function HomeScreen() {
 
   return (
     <div className="screen relative overflow-hidden">
-      <PullToRefresh onRefresh={refresh}>
+      <PullToRefresh onRefresh={refresh} scrollerRef={scrollRef}>
         <div className="flex h-full min-h-0 flex-col">
           <AppHeader
             locationName={
@@ -134,23 +134,35 @@ export function HomeScreen() {
             }
           />
 
-          {state.status === "loading" && <HomeSkeleton />}
+          {/*
+            Fills the screen when the content fits and scrolls when it does not.
+            `overflow-y-auto` here with `min-h-full` on the child is what makes
+            that one behaviour rather than two: the flex spacers inside absorb
+            slack on a tall phone, and on a short one, or at the Large text size,
+            the same content scrolls instead of being clipped. Nothing is pinned
+            to a particular device size (Decisions Log 50).
+          */}
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex min-h-full flex-col">
+              {state.status === "loading" && <HomeSkeleton />}
 
-          {state.status === "error" && (
-            <ErrorState message={state.message} onRetry={refresh} />
-          )}
+              {state.status === "error" && (
+                <ErrorState message={state.message} onRetry={refresh} />
+              )}
 
-          {state.status === "ready" && (
-            <LoadedHome
-              bundle={state.bundle}
-              staleSince={state.staleSince}
-              name={preferences.name}
-              units={preferences.units}
-              alertBanners={preferences.alertBanners}
-              mode={mode}
-              onModeChange={setMode}
-            />
-          )}
+              {state.status === "ready" && (
+                <LoadedHome
+                  bundle={state.bundle}
+                  staleSince={state.staleSince}
+                  name={preferences.name}
+                  units={preferences.units}
+                  alertBanners={preferences.alertBanners}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              )}
+            </div>
+          </div>
 
           <BottomNav />
         </div>

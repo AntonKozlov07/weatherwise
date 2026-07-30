@@ -68,7 +68,7 @@ export function NowCard({
       </p>
 
       <div className="mt-3 flex items-start justify-between gap-4">
-        <p className="type-temp text-[5.5rem]">
+        <p className="type-temp text-[clamp(4rem,20vw,5.75rem)]">
           {formatTemperature(current.temperature, units)}
           <span className="type-degree">°{temperatureUnit(units)}</span>
         </p>

@@ -10,6 +10,11 @@ const RESISTANCE = 0.5;
 
 type Props = {
   onRefresh: () => Promise<void> | void;
+  /**
+   * The element that scrolls, when it is not the page. The gesture may only
+   * start from the top of it, or pulling down would fight a normal scroll.
+   */
+  scrollerRef?: React.RefObject<HTMLElement | null>;
   children: React.ReactNode;
 };
 
@@ -24,7 +29,7 @@ type Props = {
  * Only starts when the page is already scrolled to the top, otherwise a normal
  * upward scroll would fight the gesture.
  */
-export function PullToRefresh({ onRefresh, children }: Props) {
+export function PullToRefresh({ onRefresh, scrollerRef, children }: Props) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   // Rendered, because the release animation depends on it: the container eases
@@ -37,7 +42,11 @@ export function PullToRefresh({ onRefresh, children }: Props) {
     const node = containerRef.current;
     if (!node) return;
 
-    const atTop = () => window.scrollY <= 0;
+    // The content region scrolls, not the page, so the page's own scrollY stays
+    // at zero and cannot be the test. Without this the gesture fired while the
+    // list was scrolled halfway down.
+    const atTop = () =>
+      scrollerRef ? (scrollerRef.current?.scrollTop ?? 0) <= 0 : window.scrollY <= 0;
 
     const onTouchStart = (event: TouchEvent) => {
       if (refreshing || !atTop()) return;
@@ -99,7 +108,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
       node.removeEventListener("touchend", onTouchEnd);
       node.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [onRefresh, pull, refreshing]);
+  }, [onRefresh, pull, refreshing, scrollerRef]);
 
   const armed = pull >= THRESHOLD;
 

@@ -29,7 +29,11 @@ export function BottomNav() {
       aria-label="Sections"
       // Pulled in 10px further on each side than the page gutter, and taller,
       // so the bar reads as a floating control rather than a full-width strip.
-      className="sticky bottom-0 mt-auto px-[1.875rem] pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3"
+      //
+      // No safe-area inset here. `.app-shell` already applies it, and adding it
+      // again counted the home indicator twice, leaving a band of dead space
+      // below the nav on any device that reports one (Decisions Log 47).
+      className="sticky bottom-0 mt-auto px-[1.875rem] pb-3 pt-3"
     >
       <ul className="card-floating flex items-center justify-around rounded-card py-6">
         {ITEMS.map((item) => {

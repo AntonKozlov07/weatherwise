@@ -18,9 +18,9 @@ import { useEffect, useState } from "react";
  */
 
 const SEEN_KEY = "weatherwise.splash-seen";
-/** Clouds part over 1500ms, then the overlay fades out over 320ms. */
-const REVEAL_MS = 1500;
-const FADE_MS = 320;
+/** Clouds clear over 1900ms, then the overlay fades out over 400ms. */
+const REVEAL_MS = 1900;
+const FADE_MS = 400;
 
 function Cloud({ className, style }: { className: string; style?: React.CSSProperties }) {
   return (
@@ -98,8 +98,8 @@ export function Splash() {
           <Image
             src="/brand/Special_Text_Version.svg"
             alt=""
-            width={256}
-            height={20}
+            width={170}
+            height={16}
             className="h-auto w-[min(17rem,68vw)]"
             priority
             unoptimized
@@ -108,8 +108,8 @@ export function Splash() {
 
         {playing && (
           <>
-            <Cloud className="ww-cloud-left absolute w-[62vw] text-text" />
-            <Cloud className="ww-cloud-right absolute w-[58vw] text-text-dim" />
+            <Cloud className="ww-cloud-left absolute w-[92vw] text-text" />
+            <Cloud className="ww-cloud-right absolute w-[104vw] text-text-dim" />
           </>
         )}
       </div>

@@ -50,17 +50,24 @@ export function AppHeader({ locationName }: { locationName?: string }) {
           </svg>
         </button>
 
-        {/* Centred on the screen, not on the space left of the hamburger:
-            the button is absolutely positioned so it takes the wordmark out of
-            the flow calculation entirely. */}
+        {/* Centred on the screen, not on the space left of the hamburger: the
+            button is absolutely positioned so it takes the wordmark out of the
+            flow calculation entirely.
+            The source viewBox carried 72 units of empty space to the right of
+            the artwork, so a centred element still rendered the wordmark 15%
+            left of centre. The viewBox is now cropped to the art, and these
+            dimensions match its real aspect ratio (Decisions Log 48). */}
         <Image
           src="/brand/WeatherWise_Text_Logo.svg"
           alt="WeatherWise"
-          width={264}
-          height={22}
+          width={160}
+          height={15}
           // Capped in rem and floored in vw so it stays clear of the hamburger
           // on a narrower phone instead of crowding it.
-          className="h-auto w-[min(16.5rem,62vw)]"
+          // Now that the viewBox is cropped, the element width is the artwork
+          // width, so this floors lower than before to keep clear of the
+          // hamburger on a 360px screen.
+          className="h-auto w-[min(15rem,57vw)]"
           priority
           unoptimized
         />
