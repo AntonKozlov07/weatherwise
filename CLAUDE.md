@@ -333,14 +333,22 @@ Stop for review at the end of each. Commit before moving on.
 
 **Current phase: all eight complete.**
 
+**Live deployment: https://weatherwise-sable.vercel.app**
+
+**Verified against the live API on 2026-07-29** via `/api/health` and the deployed routes. One Call 4.0 answers, and the endpoint paths and response shapes taken from the documentation were correct. Confirmed working: place name via reverse geocoding ("Guelph"), condition code mapping (800 to "Clear"), air quality (index 2), sunrise resolved, 10 daily points, both tile layers returning real PNGs through the proxy, `/api/forecast` and `/api/search`. The migration is no longer unverified.
+
+Two things that verification turned up:
+
+- **The 1h timeline returns about 20 to 24 points, not 48.** `HOURLY_POINTS` caps at 48 and the rail asks for 24, so the Hourly rail is as long as the data allows and no longer. 4.0 pages its timelines and exposes `next`; following it would extend the window if that is ever wanted.
+- **A precipitation tile on a clear day is a near-empty PNG** (571 bytes against 18kB for wind). The overlay is legitimately invisible in clear weather, which is easy to mistake for a broken map. Worth remembering before debugging the map again.
+
 Outstanding:
 
-- The map has not been opened against real tiles. `OPENWEATHER_API_KEY` is unset, so the wind layer returns a configuration error; the radar layer and basemap need a browser with the built app to confirm.
-
-- The WeatherAPI happy path has never run against the live vendor. `WEATHER_API_KEY` is not set locally, so every code path from `fetchForecast` through the home screen has only been exercised against fixtures. Set the key locally and in Vercel, then load the home screen before trusting phase 2.
-- Whether the free plan returns `alerts` is unconfirmed. `normalizeAlerts` treats an absent block as no alerts, so the banner simply will not appear if the plan excludes them.
-- The news provider is unconfirmed (Decisions Log 33). Nothing on the Explore page has run against a real response. Set `NEWS_API_KEY`, hit `/api/news/identify` in development, and record the answer here.
-- Pull to refresh has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone, to confirm it does not fight the page scroll.
+- **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
+- **The news provider is unconfirmed** (Decisions Log 33). `NEWS_API_KEY` is set in Vercel but `/api/news` has not been exercised against a real response. Open the Explore page on the deployment: if articles load, the thenewsapi.com assumption was right. If it errors, the key belongs to newsapi.org and the module gets replaced.
+- **Alerts have never been seen with real data.** The verification ran during clear weather with zero alerts in effect, so `fetchAlerts` and the banner are still only covered by tests.
+- **Safe-area behaviour is unconfirmed.** Desktop reports zero insets, so the double-inset fix below the nav can only be judged on a real device.
+- **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
 
 ---
 
