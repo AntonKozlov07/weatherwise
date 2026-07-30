@@ -88,13 +88,46 @@ export function WeatherMap() {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = new MapLibreMap({
-      container: containerRef.current,
-      style: BASEMAP_STYLE,
-      center: [centre.longitude, centre.latitude],
-      zoom: 7,
-      attributionControl: false,
-    });
+    // WebGL is the one hard requirement, and losing it produces a blank canvas
+    // with no error of its own. Checked first so the message says so.
+    const probe = document.createElement("canvas");
+    const gl =
+      probe.getContext("webgl2") ??
+      probe.getContext("webgl") ??
+      probe.getContext("experimental-webgl");
+
+    // These two are setState in an effect body, which the lint rule warns about
+    // in general and is right to. Here they are one-time capability failures
+    // that must reach the screen instead of leaving a blank rectangle, and there
+    // is no external system to subscribe to for "WebGL does not exist".
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (!gl) {
+      setStyleError("This browser cannot draw the map: WebGL is unavailable.");
+      return;
+    }
+
+    let map: InstanceType<typeof MapLibreMap>;
+
+    try {
+      map = new MapLibreMap({
+        container: containerRef.current,
+        style: BASEMAP_STYLE,
+        center: [centre.longitude, centre.latitude],
+        zoom: 7,
+        attributionControl: false,
+      });
+    } catch (error) {
+      // Construction throws on a missing worker, a bad style URL, or a WebGL
+      // context that reports present then fails. Without this the component
+      // simply rendered nothing and the overlay span forever.
+      setStyleError(
+        `The map could not start: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -115,7 +148,14 @@ export function WeatherMap() {
       // A single missing tile is not worth taking the screen down for; a failed
       // style is, because it leaves nothing but a blank rectangle.
       if ((event as { sourceId?: string }).sourceId) return;
-      setStyleError("The map could not load. Check your connection.");
+
+      // The vendor's own message, not a generic one. A blank map with "check
+      // your connection" is unactionable when the real cause is a style parse
+      // failure or a blocked request.
+      const detail = (event as { error?: { message?: string } }).error?.message;
+      setStyleError(
+        detail ? `The map could not load: ${detail}` : "The map could not load.",
+      );
     });
 
     mapRef.current = map;

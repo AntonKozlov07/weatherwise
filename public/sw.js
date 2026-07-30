@@ -16,7 +16,9 @@
  * "Offline, showing last update" banner land in phase 8.
  */
 
-const CACHE_VERSION = "v2";
+// v3: the brand SVGs were re-cropped. Their URLs are stable, so a cache-first
+// entry kept serving the old artwork on every device that had already visited.
+const CACHE_VERSION = "v3";
 const SHELL_CACHE = `weatherwise-shell-${CACHE_VERSION}`;
 const DATA_CACHE = `weatherwise-data-${CACHE_VERSION}`;
 
@@ -28,12 +30,26 @@ const SHELL_ASSETS = [
   "/icons/apple-icon-180.png",
 ];
 
-/** Paths that are safe to serve cache-first: content-hashed or immutable. */
-function isStaticAsset(url) {
+/**
+ * Content-hashed by the build, so a change means a new URL. Safe to serve
+ * cache-first and never revalidate.
+ */
+function isImmutableAsset(url) {
+  return url.pathname.startsWith("/_next/static/");
+}
+
+/**
+ * Stable URLs whose contents can still change between releases: brand artwork,
+ * generated icons, weather glyphs. Serving these cache-first meant editing an
+ * SVG had no effect on any device that had already loaded it, which is exactly
+ * what happened to the wordmark. They are now stale-while-revalidate: instant
+ * from cache, but refreshed in the background for next time.
+ */
+function isRevalidatingAsset(url) {
   return (
-    url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/brand/")
+    url.pathname.startsWith("/brand/") ||
+    url.pathname.startsWith("/weather-icons/")
   );
 }
 
@@ -133,17 +149,43 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (!isStaticAsset(url)) return;
+  if (isImmutableAsset(url)) {
+    // Content-hashed: cache first, populate on miss, never revalidate.
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
 
-  // Static assets: cache first, populate on miss.
-  event.respondWith(
-    caches.open(SHELL_CACHE).then(async (cache) => {
-      const cached = await cache.match(request);
-      if (cached) return cached;
+        const response = await fetch(request);
+        if (response.ok) cache.put(request, response.clone());
+        return response;
+      }),
+    );
+    return;
+  }
 
-      const response = await fetch(request);
-      if (response.ok) cache.put(request, response.clone());
-      return response;
-    }),
-  );
+  if (isRevalidatingAsset(url)) {
+    // Stale-while-revalidate: answer from cache immediately, then refresh it so
+    // an edited asset reaches the device on the following load.
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+
+        const refresh = fetch(request)
+          .then((response) => {
+            if (response.ok) cache.put(request, response.clone());
+            return response;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(refresh);
+          return cached;
+        }
+
+        const response = await refresh;
+        return response ?? Response.error();
+      }),
+    );
+  }
 });
