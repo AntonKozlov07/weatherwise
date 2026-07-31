@@ -8,11 +8,13 @@ import {
   type ConditionKey,
   type TimeOfDay,
 } from "./condition-theme";
-import { AA_LARGE, AA_TEXT, compositeOver, contrastRatio, parseHex } from "./contrast";
+import { AA_LARGE, AA_TEXT, contrastRatio, parseHex } from "./contrast";
 
-/** Must match --text and --text-dim in tokens.css. */
+/** Must match tokens.css. */
 const TEXT = "#edeae4";
 const TEXT_DIM = "#a6a49f";
+const BG = "#16191d";
+const SURFACE = "#1d2126";
 
 const HOUR = 3_600_000;
 const SUNRISE = Date.UTC(2026, 6, 28, 10, 0);
@@ -95,67 +97,60 @@ describe("generated themes", () => {
   });
 
   /**
-   * The wash is a translucent tint over the base, so the colour text actually
-   * sits on is the composite. The strongest stop is used, which is the
-   * lightest the background ever gets and therefore the worst case for light
-   * text on it.
+   * The theme no longer touches the page background, so text always sits on the
+   * neutral tokens. Both are checked: --bg for the page, --surface for cards,
+   * which is the lighter of the two and therefore the worse case for light text.
    */
-  const worstCaseBackground = (condition: ConditionKey, time: TimeOfDay) => {
-    const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
+  it.each([BG, SURFACE])("keeps body and dimmed text at AA on %s", (background) => {
+    expect(contrastRatio(TEXT, background)).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(contrastRatio(TEXT_DIM, background)).toBeGreaterThanOrEqual(AA_TEXT);
+  });
 
-    const match = theme.backgroundImage.match(
-      /rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)/,
-    );
-
-    if (!match) throw new Error(`No tint found for ${condition}/${time}`);
-
-    const [, r, g, b, alpha] = match;
-
-    return compositeOver(
-      { r: Number(r), g: Number(g), b: Number(b) },
-      Number(alpha),
-      theme.background,
-    );
-  };
-
-  it.each(combinations)(
-    "keeps body text at AA on $condition/$time",
-    ({ condition, time }) => {
-      const ratio = contrastRatio(TEXT, worstCaseBackground(condition, time));
-      expect(ratio).toBeGreaterThanOrEqual(AA_TEXT);
-    },
-  );
-
-  it.each(combinations)(
-    "keeps dimmed text at AA on $condition/$time",
-    ({ condition, time }) => {
-      const ratio = contrastRatio(TEXT_DIM, worstCaseBackground(condition, time));
-      expect(ratio).toBeGreaterThanOrEqual(AA_TEXT);
-    },
-  );
-
-  // Accents are used for controls and large figures, so the 3:1 UI threshold
-  // applies rather than the 4.5:1 body-text one.
+  // Accents drive the scrubber, the spine and active states, so the 3:1 UI
+  // threshold applies rather than the 4.5:1 body-text one. Checked against the
+  // lighter surface, since an accent on a raised card is the worst case.
   it.each(combinations)(
     "keeps the accent at AA large on $condition/$time",
     ({ condition, time }) => {
       const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
-      const ratio = contrastRatio(theme.accent, worstCaseBackground(condition, time));
 
-      expect(ratio).toBeGreaterThanOrEqual(AA_LARGE);
+      expect(contrastRatio(theme.accent, SURFACE)).toBeGreaterThanOrEqual(AA_LARGE);
     },
   );
 
-  it("never produces a background lighter than the text", () => {
-    for (const { condition, time } of combinations) {
-      const background = worstCaseBackground(condition, time);
+  it.each(combinations)(
+    "gives the bar three usable stops on $condition/$time",
+    ({ condition, time }) => {
+      const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
+
+      expect(theme.gradient).toHaveLength(3);
+      for (const stop of theme.gradient) expect(stop).toMatch(/^#[0-9a-f]{6}$/i);
+
+      // Dark to light, so the band has a direction rather than reading flat.
+      const lightness = theme.gradient.map((stop) => {
+        const { r, g, b } = parseHex(stop);
+        return r + g + b;
+      });
+
+      expect(lightness[1]).toBeGreaterThan(lightness[0]);
+      expect(lightness[2]).toBeGreaterThan(lightness[1]);
+    },
+  );
+
+  // White text sits on the bar's brightest stop in the hero, so that one stop
+  // has to stay dark enough to carry it.
+  it.each(combinations)(
+    "keeps the brightest stop below the text on $condition/$time",
+    ({ condition, time }) => {
+      const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
+      const brightest = parseHex(theme.gradient[2]);
       const text = parseHex(TEXT);
 
-      expect(background.r + background.g + background.b).toBeLessThan(
+      expect(brightest.r + brightest.g + brightest.b).toBeLessThan(
         text.r + text.g + text.b,
       );
-    }
-  });
+    },
+  );
 });
 
 describe("themeVariables", () => {
@@ -163,10 +158,12 @@ describe("themeVariables", () => {
     const theme = conditionTheme(800, TIMES.day, SUNRISE, SUNSET);
     const variables = themeVariables(theme);
 
+    // --bg is absent on purpose: the theme is confined to the bar and the accent.
     expect(Object.keys(variables).sort()).toEqual([
       "--accent",
-      "--bg",
-      "--condition-wash",
+      "--grad-0",
+      "--grad-1",
+      "--grad-2",
     ]);
     expect(variables["--accent"]).toMatch(/^#[0-9a-f]{6}$/i);
   });

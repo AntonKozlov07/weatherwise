@@ -64,6 +64,11 @@
   --alert-warning: #e05c4c;
   --alert-warning-bg: rgb(224 92 76 / 0.14);
 
+  /* Sunrise and sunset on the timeline. Amber and fixed, deliberately outside
+     the condition theme: these are events on the line, not weather, and tinting
+     them with the sky would make them read as more of the same. */
+  --sun: #d9a441;
+
   /* ---- Space: 4px base --------------------------------------------------- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;

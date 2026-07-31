@@ -26,6 +26,13 @@ export type Preferences = {
    * (Decisions Log 7), and the settings label has to say so.
    */
   alertBanners: boolean;
+  /**
+   * Tilt-reactive highlights on the hero. Off by default: iOS will only hand
+   * over device orientation after an explicit permission prompt, and that
+   * prompt can only be raised from a tap, so the toggle is where the user opts
+   * in and where the prompt fires (Decisions Log 67).
+   */
+  motionEffects: boolean;
   locations: SavedLocation[];
   activeLocationId: string | null;
   onboarded: boolean;
@@ -46,6 +53,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   theme: "dark",
   fontSize: "medium",
   alertBanners: true,
+  motionEffects: false,
   locations: [],
   activeLocationId: null,
   onboarded: false,
@@ -132,6 +140,10 @@ export function parsePreferences(raw: string | null): Preferences {
       typeof stored.alertBanners === "boolean"
         ? stored.alertBanners
         : DEFAULT_PREFERENCES.alertBanners,
+    motionEffects:
+      typeof stored.motionEffects === "boolean"
+        ? stored.motionEffects
+        : DEFAULT_PREFERENCES.motionEffects,
     locations,
     activeLocationId,
     onboarded:

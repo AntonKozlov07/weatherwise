@@ -8,6 +8,7 @@ import { LocationSearch } from "@/components/location-search";
 import { PushSettings } from "@/components/push-settings";
 import { resetPreferences, updatePreferences, usePreferences } from "@/components/preferences-provider";
 import { GhostButton, OptionGroup, TextField, Toggle } from "@/components/ui";
+import { requestTiltPermission } from "@/lib/hooks/use-tilt";
 import type { FontSize, SavedLocation, Theme, Units } from "@/lib/preferences";
 
 function Section({
@@ -100,6 +101,27 @@ export function Settings() {
               { value: "medium", label: "Medium" },
               { value: "large", label: "Large" },
             ]}
+          />
+
+          {/*
+            The iOS permission prompt can only be raised from a user gesture and
+            can never be raised twice, so it fires from this toggle and nowhere
+            else. Turning the switch on is the gesture; if the prompt is
+            declined, the switch goes back off rather than sitting on and doing
+            nothing (Decisions Log 67).
+          */}
+          <Toggle
+            label="Motion effects"
+            hint="Highlights on the forecast card follow how you hold the phone."
+            checked={preferences.motionEffects}
+            onChange={async (motionEffects) => {
+              if (!motionEffects) {
+                updatePreferences({ motionEffects: false });
+                return;
+              }
+
+              updatePreferences({ motionEffects: await requestTiltPermission() });
+            }}
           />
         </Section>
 

@@ -1,38 +1,33 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AlertBanner } from "@/components/alert-banner";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
 import { ConditionThemeProvider } from "@/components/condition-theme-provider";
-import { NowcastCard } from "@/components/nowcast-card";
-import { ForecastRail } from "@/components/forecast-rail";
 import { Greeting } from "@/components/greeting";
-import { NowCard } from "@/components/now-card";
+import { Hero } from "@/components/hero";
+import { NowcastCard } from "@/components/nowcast-card";
 import { OfflineBanner } from "@/components/offline-banner";
 import { usePreferences } from "@/components/preferences-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { SegmentedControl, type RailMode } from "@/components/segmented-control";
 import { ErrorState, HomeSkeleton } from "@/components/skeletons";
+import { TimeScrubber } from "@/components/time-scrubber";
+import { Timeline } from "@/components/timeline";
 import { formatUpdatedAgo } from "@/lib/format";
 import { useForecast } from "@/lib/hooks/use-forecast";
 import { useGreetingGradient } from "@/lib/hooks/use-greeting-gradient";
 import { DEFAULT_LOCATION } from "@/lib/location";
+import { buildTimeline } from "@/lib/timeline/timeline";
 import { activeLocation } from "@/lib/preferences";
 import { readPreferences } from "@/lib/preferences-store";
 import type { ForecastBundle } from "@/lib/weather/types";
 
-/** Rain chance for the now card, taken from the hours immediately ahead. */
-function nearTermRainChance(chances: number[]): number {
-  return chances.length === 0 ? 0 : Math.max(...chances);
-}
-
 /**
- * Split out because the gradient hook needs a condition and astronomy, which
- * only exist once the bundle has loaded. Calling it above the loading branch
- * would mean calling a hook conditionally.
+ * Split out because several hooks need a loaded bundle, and calling them above
+ * the loading branch would mean calling hooks conditionally.
  */
 function LoadedHome({
   bundle,
@@ -40,26 +35,91 @@ function LoadedHome({
   name,
   units,
   alertBanners,
-  mode,
-  onModeChange,
+  motionEffects,
 }: {
   bundle: ForecastBundle;
   staleSince: number | null;
   name: string;
   units: "metric" | "imperial";
   alertBanners: boolean;
-  mode: RailMode;
-  onModeChange: (mode: RailMode) => void;
+  motionEffects: boolean;
 }) {
   const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
 
+  const rows = useMemo(
+    () =>
+      buildTimeline({
+        hourly: bundle.hourly,
+        daily: bundle.daily,
+        astronomy: bundle.astronomy,
+        now: bundle.current.observedAt,
+      }),
+    // The exact fields read, not the whole bundle. The two lint rules disagree
+    // here: the compiler rule rejects `[bundle]` because it cannot preserve the
+    // memoisation, and exhaustive-deps wants it back. The compiler is right
+    // about the thing that matters, so its version stands and the older rule is
+    // silenced on this line alone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bundle.hourly, bundle.daily, bundle.astronomy, bundle.current.observedAt],
+  );
+
+  /**
+   * The scrubber moves over hours only. Days are on the same timeline but a
+   * scrubber that steps from 3pm to Thursday in one notch is not a scrubber,
+   * it is two controls wearing one coat.
+   */
+  const hourPositions = useMemo(
+    () =>
+      rows
+        .map((row, index) => (row.kind === "hour" ? index : -1))
+        .filter((index) => index !== -1),
+    [rows],
+  );
+
+  const [scrubIndex, setScrubIndex] = useState(0);
+
+  // Clamped rather than reset: a refresh that drops one past hour should keep
+  // the user roughly where they were, not throw them back to now.
+  const safeIndex = Math.min(scrubIndex, Math.max(0, hourPositions.length - 1));
+  const activeRowIndex = hourPositions[safeIndex] ?? -1;
+  const activeRow = rows[activeRowIndex];
+
+  const scrubbed = safeIndex !== 0;
+
+  // At now the hero shows the observation, which carries readings the hourly
+  // forecast does not. Away from now it shows the forecast for that hour.
+  const view =
+    scrubbed && activeRow?.kind === "hour"
+      ? {
+          time: activeRow.time,
+          condition: activeRow.condition,
+          temperature: activeRow.temperature,
+          feelsLike: bundle.hourly.find((hour) => hour.time === activeRow.time)
+            ?.feelsLike ?? activeRow.temperature,
+          humidity:
+            bundle.hourly.find((hour) => hour.time === activeRow.time)?.humidity ??
+            bundle.current.humidity,
+          uvIndex:
+            bundle.hourly.find((hour) => hour.time === activeRow.time)?.uvIndex ??
+            0,
+          windSpeed:
+            bundle.hourly.find((hour) => hour.time === activeRow.time)?.wind.speed ??
+            bundle.current.wind.speed,
+        }
+      : {
+          time: bundle.current.observedAt,
+          condition: bundle.current.condition,
+          temperature: bundle.current.temperature,
+          feelsLike: bundle.current.feelsLike,
+          humidity: bundle.current.humidity,
+          uvIndex: bundle.current.uvIndex,
+          windSpeed: bundle.current.wind.speed,
+        };
+
   return (
-    // `justify-between` spreads leftover height across every gap instead of
-    // dumping it into one spacer. A single growing spacer looked fine at 800px
-    // tall and opened a 267px hole at 956 (Decisions Log 50).
-    <div className="flex min-h-full flex-1 flex-col justify-between gap-stack">
-      {/* Sets --bg and --accent on the document root from this location's own
-          condition and sun times. Renders nothing itself. */}
+    <div className="flex flex-col gap-stack pb-6">
+      {/* Sets the gradient stops and accent on the document root from this
+          location's own condition and sun times. Renders nothing itself. */}
       <ConditionThemeProvider
         current={bundle.current}
         astronomy={bundle.astronomy}
@@ -67,8 +127,8 @@ function LoadedHome({
 
       {staleSince !== null && <OfflineBanner staleSince={staleSince} />}
 
-      {/* Above everything, in the flow, so it pushes content down rather than
-          covering it. Renders nothing when there is nothing to show. */}
+      {/* In the flow, so it pushes content down rather than covering it.
+          Renders nothing when there is nothing to show. */}
       {alertBanners && (
         <AlertBanner
           alerts={bundle.alerts}
@@ -88,41 +148,57 @@ function LoadedHome({
         className="ww-rise"
         style={{ "--rise-delay": "60ms" } as React.CSSProperties}
       >
-        <NowCard
+        <Hero
+          view={view}
           current={bundle.current}
+          hourly={bundle.hourly}
           timeZone={bundle.location.timeZone}
           units={units}
-          gradient={gradient}
-          precipitationChance={nearTermRainChance(
-            bundle.hourly.slice(0, 6).map((hour) => hour.precipitationChance),
-          )}
+          motionEffects={motionEffects}
+          scrubbed={scrubbed}
         />
       </div>
 
-      {/* Directly below the current conditions. Absent entirely where One Call
-          publishes no minutely data. */}
+      {hourPositions.length > 1 && (
+        <div
+          className="ww-rise"
+          style={{ "--rise-delay": "90ms" } as React.CSSProperties}
+        >
+          <TimeScrubber
+            times={hourPositions.map((index) => rows[index].time)}
+            timeZone={bundle.location.timeZone}
+            index={safeIndex}
+            onChange={setScrubIndex}
+            nowIndex={0}
+          />
+        </div>
+      )}
+
+      {/* Absent entirely where One Call publishes no minutely data. */}
       <div
-        className="ww-rise"
-        style={{ "--rise-delay": "90ms" } as React.CSSProperties}
+        className="ww-rise page-gutter"
+        style={{ "--rise-delay": "120ms" } as React.CSSProperties}
       >
         <NowcastCard nowcast={bundle.nowcast} />
       </div>
 
       <div
         className="ww-rise"
-        style={{ "--rise-delay": "120ms" } as React.CSSProperties}
+        style={{ "--rise-delay": "150ms" } as React.CSSProperties}
       >
-        <SegmentedControl value={mode} onChange={onModeChange} />
+        <Timeline
+          rows={rows}
+          timeZone={bundle.location.timeZone}
+          units={units}
+          now={bundle.current.observedAt}
+          activeIndex={activeRowIndex}
+          onSelect={(index) => {
+            // Tapping a day is not a scrub target, so only hour rows move it.
+            const position = hourPositions.indexOf(index);
+            if (position !== -1) setScrubIndex(position);
+          }}
+        />
       </div>
-
-      <ForecastRail
-        mode={mode}
-        hourly={bundle.hourly}
-        daily={bundle.daily}
-        timeZone={bundle.location.timeZone}
-        units={units}
-        gradient={gradient}
-      />
     </div>
   );
 }
@@ -130,7 +206,6 @@ function LoadedHome({
 export function HomeScreen() {
   const router = useRouter();
   const preferences = usePreferences();
-  const [mode, setMode] = useState<RailMode>("hourly");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const saved = activeLocation(preferences);
@@ -159,33 +234,27 @@ export function HomeScreen() {
           />
 
           {/*
-            Fills the screen when the content fits and scrolls when it does not.
-            `overflow-y-auto` here with `min-h-full` on the child is what makes
-            that one behaviour rather than two: the flex spacers inside absorb
-            slack on a tall phone, and on a short one, or at the Large text size,
-            the same content scrolls instead of being clipped. Nothing is pinned
-            to a particular device size (Decisions Log 50).
+            The timeline is long by design, so this screen scrolls where the
+            others fit. The scroll lives here rather than on the page, so the
+            header and nav stay put and nothing is clipped (Decisions Log 52).
           */}
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-            <div className="flex min-h-full flex-col">
-              {state.status === "loading" && <HomeSkeleton />}
+            {state.status === "loading" && <HomeSkeleton />}
 
-              {state.status === "error" && (
-                <ErrorState message={state.message} onRetry={refresh} />
-              )}
+            {state.status === "error" && (
+              <ErrorState message={state.message} onRetry={refresh} />
+            )}
 
-              {state.status === "ready" && (
-                <LoadedHome
-                  bundle={state.bundle}
-                  staleSince={state.staleSince}
-                  name={preferences.name}
-                  units={preferences.units}
-                  alertBanners={preferences.alertBanners}
-                  mode={mode}
-                  onModeChange={setMode}
-                />
-              )}
-            </div>
+            {state.status === "ready" && (
+              <LoadedHome
+                bundle={state.bundle}
+                staleSince={state.staleSince}
+                name={preferences.name}
+                units={preferences.units}
+                alertBanners={preferences.alertBanners}
+                motionEffects={preferences.motionEffects}
+              />
+            )}
           </div>
 
           <BottomNav />

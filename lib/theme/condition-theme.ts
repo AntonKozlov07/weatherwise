@@ -12,10 +12,12 @@ import { conditionInfo } from "@/lib/weather/openweather/conditions";
  * time, never the device clock. Viewing a saved location in another timezone
  * has to show that location's sky.
  *
- * Backgrounds are deliberately restrained: two desaturated stops, low contrast
- * against the base graphite. This reads as expensive; a vivid skybox does not.
- * Every accent below is checked against its own background in
- * `condition-theme.test.ts` for WCAG AA.
+ * The theme is expressed in exactly two places: the hero's gradient bar, and the
+ * accent. Backgrounds, cards and surfaces stay neutral graphite. An earlier
+ * version also washed the page background with a condition tint; it made the
+ * colour read as an accident of the palette rather than a deliberate signal, and
+ * it fought the card separation. Confining it to one band is what makes it look
+ * chosen (Decisions Log 64).
  */
 
 export type TimeOfDay = "dawn" | "day" | "dusk" | "night";
@@ -31,10 +33,9 @@ export type ConditionKey =
 export type ConditionTheme = {
   timeOfDay: TimeOfDay;
   condition: ConditionKey;
-  /** Two-stop wash painted over the base background. */
-  backgroundImage: string;
-  /** Base colour beneath the wash. */
-  background: string;
+  /** The three stops of the hero's gradient bar, dark to light to mid. */
+  gradient: [string, string, string];
+  /** Used for the scrubber, active states and the timeline spine. */
   accent: string;
 };
 
@@ -79,64 +80,55 @@ export function conditionKeyFor(code: number): ConditionKey {
   }
 }
 
-/** Base page colour per time of day. Night is the darkest, dawn the warmest. */
-const BASE: Record<TimeOfDay, string> = {
-  dawn: "#1b1a1f",
-  day: "#16191d",
-  dusk: "#1a181c",
-  night: "#111418",
-};
+type Palette = { gradient: [string, string, string]; accent: string };
 
 /**
- * The wash tint per condition and time of day, and the accent that goes with
- * it. Tints are low-alpha over the base, so the result stays in the graphite
- * family rather than becoming a coloured screen.
+ * Gradient stops and accent per condition and time of day.
+ *
+ * The bar is the only saturated surface in the app, so these can carry real
+ * colour without the screen becoming loud. Each ramp runs deep to bright to
+ * mid, which gives the band a centre of gravity instead of a flat sweep.
+ *
+ * Accents are checked against the neutral background for WCAG AA large in
+ * `condition-theme.test.ts`; none of these values is a guess.
  */
-const TINT: Record<ConditionKey, Record<TimeOfDay, { tint: string; accent: string }>> = {
+const PALETTE: Record<ConditionKey, Record<TimeOfDay, Palette>> = {
   clear: {
-    dawn: { tint: "255 176 122", accent: "#e0a878" },
-    day: { tint: "150 190 225", accent: "#8fb4d6" },
-    dusk: { tint: "236 138 108", accent: "#d9906e" },
-    night: { tint: "120 148 200", accent: "#8e9fc4" },
+    dawn: { gradient: ["#3a2f4d", "#c8825f", "#e8b98c"], accent: "#e0a878" },
+    day: { gradient: ["#28455f", "#5f96c4", "#a9cbe6"], accent: "#8fb4d6" },
+    dusk: { gradient: ["#452f4d", "#c46a51", "#e2a274"], accent: "#d9906e" },
+    night: { gradient: ["#151d30", "#35496f", "#6a80a8"], accent: "#8e9fc4" },
   },
   cloudy: {
-    dawn: { tint: "196 176 168", accent: "#b7a79e" },
-    day: { tint: "168 182 196", accent: "#9aa7b5" },
-    dusk: { tint: "186 166 168", accent: "#ad9c9e" },
-    night: { tint: "132 144 160", accent: "#8a94a4" },
+    dawn: { gradient: ["#38323c", "#8b7a72", "#bfada1"], accent: "#b7a79e" },
+    day: { gradient: ["#333d47", "#758492", "#abb8c4"], accent: "#9aa7b5" },
+    dusk: { gradient: ["#3b333b", "#866d71", "#b39699"], accent: "#ad9c9e" },
+    night: { gradient: ["#1a2028", "#414c5c", "#707c8d"], accent: "#8a94a4" },
   },
   rain: {
-    dawn: { tint: "128 158 190", accent: "#8ba6c2" },
-    day: { tint: "116 152 186", accent: "#7fa2c0" },
-    dusk: { tint: "120 142 174", accent: "#8598b4" },
-    night: { tint: "96 124 158", accent: "#7d93ad" },
+    dawn: { gradient: ["#26303e", "#54708c", "#8ea7be"], accent: "#8ba6c2" },
+    day: { gradient: ["#243849", "#4d7799", "#8bacc5"], accent: "#7fa2c0" },
+    dusk: { gradient: ["#2c2d3a", "#54647f", "#8a98ac"], accent: "#8598b4" },
+    night: { gradient: ["#141d28", "#324a64", "#617a96"], accent: "#7d93ad" },
   },
   snow: {
-    dawn: { tint: "206 216 230", accent: "#bfc8d6" },
-    day: { tint: "200 216 232", accent: "#b8c6d6" },
-    dusk: { tint: "194 202 220", accent: "#b2bccd" },
-    night: { tint: "166 182 204", accent: "#9fadc2" },
+    dawn: { gradient: ["#353a46", "#8a96a5", "#ccd6e2"], accent: "#bfc8d6" },
+    day: { gradient: ["#38414c", "#8e9eae", "#d1dbe7"], accent: "#b8c6d6" },
+    dusk: { gradient: ["#373842", "#858ea0", "#c2cad8"], accent: "#b2bccd" },
+    night: { gradient: ["#1b212b", "#485462", "#818e9d"], accent: "#9fadc2" },
   },
   storm: {
-    dawn: { tint: "150 138 186", accent: "#a294c4" },
-    day: { tint: "140 132 178", accent: "#9a90bd" },
-    dusk: { tint: "146 128 172", accent: "#9d8cb8" },
-    night: { tint: "118 110 154", accent: "#8d84ab" },
+    dawn: { gradient: ["#2a2539", "#564a75", "#8f83ac"], accent: "#a294c4" },
+    day: { gradient: ["#2b263a", "#544b73", "#8d85aa"], accent: "#9a90bd" },
+    dusk: { gradient: ["#2e2437", "#58476e", "#907ea3"], accent: "#9d8cb8" },
+    night: { gradient: ["#171524", "#342d4e", "#645e84"], accent: "#8d84ab" },
   },
   fog: {
-    dawn: { tint: "186 184 180", accent: "#aeaca8" },
-    day: { tint: "178 182 184", accent: "#a6aaad" },
-    dusk: { tint: "176 172 174", accent: "#a4a1a3" },
-    night: { tint: "142 146 150", accent: "#93979b" },
+    dawn: { gradient: ["#353537", "#828285", "#b8b8b6"], accent: "#aeaca8" },
+    day: { gradient: ["#383a3b", "#85888a", "#babdbe"], accent: "#a6aaad" },
+    dusk: { gradient: ["#363334", "#807c7f", "#b3aeb1"], accent: "#a4a1a3" },
+    night: { gradient: ["#1d1f21", "#474a4d", "#7a7e81"], accent: "#93979b" },
   },
-};
-
-/** Night reads deeper, so its wash is weaker; day carries the most light. */
-const WASH_ALPHA: Record<TimeOfDay, [number, number]> = {
-  dawn: [0.13, 0.05],
-  day: [0.12, 0.05],
-  dusk: [0.14, 0.055],
-  night: [0.09, 0.035],
 };
 
 export function conditionTheme(
@@ -147,28 +139,20 @@ export function conditionTheme(
 ): ConditionTheme {
   const timeOfDay = timeOfDayFor(observedAt, sunrise, sunset);
   const condition = conditionKeyFor(code);
-  const { tint, accent } = TINT[condition][timeOfDay];
-  const [top, side] = WASH_ALPHA[timeOfDay];
+  const { gradient, accent } = PALETTE[condition][timeOfDay];
 
-  return {
-    timeOfDay,
-    condition,
-    background: BASE[timeOfDay],
-    // Two stops, both very wide and very soft. Painted on a fixed layer so it
-    // does not repeat or scroll.
-    backgroundImage: [
-      `radial-gradient(130% 68% at 50% -12%, rgb(${tint} / ${top}), transparent 62%)`,
-      `radial-gradient(96% 56% at 104% 2%, rgb(${tint} / ${side}), transparent 58%)`,
-    ].join(", "),
-    accent,
-  };
+  return { timeOfDay, condition, gradient, accent };
 }
 
-/** The custom properties the root element carries. */
+/**
+ * The custom properties the root element carries. Deliberately short: --bg and
+ * --surface are not among them, because the theme no longer touches the page.
+ */
 export function themeVariables(theme: ConditionTheme): Record<string, string> {
   return {
-    "--bg": theme.background,
-    "--condition-wash": theme.backgroundImage,
+    "--grad-0": theme.gradient[0],
+    "--grad-1": theme.gradient[1],
+    "--grad-2": theme.gradient[2],
     "--accent": theme.accent,
   };
 }
