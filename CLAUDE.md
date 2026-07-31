@@ -449,12 +449,35 @@ service worker keeps serving cached assets, and that already caused one round of
     on. Rows separated by hairlines, labels in small caps, selection shown by an
     underline that scales from the centre.
 
+75. **Correction to 65: the daily records do carry sun times.** The timeline
+    originally placed sun rows only inside the hourly window, on my claim that
+    the daily payload had none. It has `sunrise` and `sunset` per day, and I did
+    not check before writing that down. The consequence was visible: from
+    mid-morning the timeline showed a lone "Sunset" and no sunrise anywhere,
+    because the morning's event was already behind the start of the list. Every
+    day now carries its own pair, read from that day's record rather than
+    inferred from a 24-hour offset.
+
+76. **Sun rows show minutes, rounded to ten.** The hour alone rendered a 8:41
+    sunset as "8PM", on the one row of the timeline where the minutes are the
+    entire point of the row existing.
+
+77. **The bottom safe-area inset belongs on the dock, not the shell.** Reserving
+    it on `.app-shell` shrank the content box, so every screen's background
+    stopped above the home indicator and left a black band under the floating
+    dock. On the map that read as the map being cut off, because the tiles simply
+    ended. The shell now runs to the physical bottom edge and the dock carries
+    the inset, since it is the only element that has to clear the indicator.
+    This is the cut-off that survived three earlier attempts, and it was only
+    diagnosable from a photograph of a real device: every measurement here
+    reports a zero inset, which is exactly the case where the bug disappears.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
 - **The news provider is unconfirmed** (Decisions Log 33). `NEWS_API_KEY` is set in Vercel but `/api/news` has not been exercised against a real response. Open the Explore page on the deployment: if articles load, the thenewsapi.com assumption was right. If it errors, the key belongs to newsapi.org and the module gets replaced.
 - **Alerts have never been seen with real data.** The verification ran during clear weather with zero alerts in effect, so `fetchAlerts` and the banner are still only covered by tests.
-- **Safe-area behaviour is unconfirmed.** Desktop reports zero insets, so the double-inset fix below the nav can only be judged on a real device.
+- **Safe-area behaviour is verified by simulation only.** Desktop reports zero insets. The fix in 77 was measured with the device's real insets injected as overrides, which showed zero overflow and the dock clearing the indicator exactly, but no browser here reports a genuine inset.
 - **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
 - **Nothing in the redesign has been seen rendered.** The timeline, scrubber and expanded hero are verified through the DOM only: geometry, overflow, dismissal, focus and the absence of clipping at 375x667 and 393x852 with simulated insets, at both text sizes. The browser available here does not composite, so no screenshot exists and no animation has been watched. Motion, the glint, and the FLIP in flight all need a real screen.
 - **The gradient palette was rebuilt around a contrast floor.** 37 of 72 stops failed WCAG AA against the text on them, the worst at 1.17:1, which is what "the gradient makes the text invisible" was. Stops are now darkened programmatically until both weights of on-band text clear 4.5:1, and the test asserts it for all 24 combinations, so a future palette edit cannot quietly reintroduce it. The band is darker and more saturated than before as a direct result.

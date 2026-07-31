@@ -146,6 +146,8 @@ export function normalizeDaily(
   return (envelope?.data ?? []).map((day) => ({
     date: toMillis(day.dt),
     condition: normalizeCondition(day.weather),
+    sunrise: day.sunrise === undefined ? null : toMillis(day.sunrise),
+    sunset: day.sunset === undefined ? null : toMillis(day.sunset),
     high: day.temp.max,
     low: day.temp.min,
     precipitationChance: Math.round((day.pop ?? 0) * 100),

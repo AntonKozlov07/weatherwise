@@ -225,8 +225,15 @@
     overflow-y: auto;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
+    /*
+      Deliberately no bottom inset. Reserving it here shrinks the content box,
+      so every screen's background stopped above the home indicator and left a
+      black band under the floating dock: on the map that read as the map being
+      cut off, because the tiles simply ended. The inset belongs on the dock,
+      which is the only thing that has to clear the indicator; everything behind
+      it now runs to the physical edge (Decisions Log 77).
+    */
   }
 
   /* Installed, the page paints under the status bar because the status bar
@@ -425,6 +432,12 @@
      hairlines, labels in the small caps treatment, selection shown by an
      underline. Explore was the last screen still using filled pills and filled
      cards, which made it read as a different app bolted on (Decisions Log 74). */
+
+  .ww-dock {
+    /* A floor rather than the raw inset: where the browser reports 0, the dock
+       would otherwise sit flush against the bottom edge. */
+    padding-bottom: max(env(safe-area-inset-bottom), var(--space-2));
+  }
 
   .ww-tab {
     position: relative;

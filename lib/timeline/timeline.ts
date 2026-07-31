@@ -137,10 +137,11 @@ export function buildTimeline({
   const rows: TimelineRow[] = [...hourRows];
 
   /**
-   * Only the sun events One Call actually reports, which is today's pair. The
-   * daily payload carries no sun times, so later days get no sun rows rather
-   * than times inferred from a 24-hour offset, which would drift by minutes a
-   * day and be wrong in exactly the season people notice.
+   * Today's pair, from the astronomy block, for the stretch the hours cover.
+   *
+   * Only events still ahead: the timeline starts at now, and a sunrise that
+   * already happened has no position on it. The card states both regardless,
+   * which is where you look for one that has passed.
    */
   for (const event of ["sunrise", "sunset"] as const) {
     const time = astronomy[event];
@@ -157,7 +158,32 @@ export function buildTimeline({
     });
   }
 
+  /**
+   * Every later day's own pair, which the daily payload carries per day.
+   *
+   * An earlier version inferred nothing here and left days without sun rows, on
+   * the belief that the daily records had no sun times. They do.
+   */
   for (const day of days) {
+    for (const event of ["sunrise", "sunset"] as const) {
+      const time = day[event];
+
+      // Guarded against the hourly window: today's pair is already placed
+      // above, and OWM's first daily record is today.
+      if (time === null || time <= lastHour) continue;
+
+      rows.push({
+        kind: "sun",
+        key: `s-${event}-${time}`,
+        time,
+        event,
+        // Days have no spine of their own between them, so the sun sits level
+        // with the day it belongs to rather than interpolating across a gap of
+        // twenty-odd hours.
+        spine: normalise((day.high + day.low) / 2, min, max),
+      });
+    }
+
     rows.push({
       kind: "day",
       key: `d-${day.date}`,

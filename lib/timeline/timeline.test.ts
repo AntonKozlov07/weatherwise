@@ -23,10 +23,17 @@ function hours(temps: number[], precip: number[] = []): HourlyPoint[] {
   }));
 }
 
-function days(count: number, from = NOW + 60 * HOUR): DailyPoint[] {
+function days(
+  count: number,
+  from = NOW + 60 * HOUR,
+  withSun = true,
+): DailyPoint[] {
   return Array.from({ length: count }, (_, index) => ({
     date: from + index * 24 * HOUR,
     condition,
+    // Local morning and evening either side of the record's midday stamp.
+    sunrise: withSun ? from + index * 24 * HOUR - 6 * HOUR : null,
+    sunset: withSun ? from + index * 24 * HOUR + 6 * HOUR : null,
     high: 20 + index,
     low: 10 + index,
     precipitationChance: 20,
@@ -52,7 +59,7 @@ describe("buildTimeline", () => {
   it("runs hours into days with no gap and no overlap", () => {
     const rows = buildTimeline({
       hourly: hours(new Array(48).fill(15)),
-      daily: days(8, NOW),
+      daily: days(8, NOW, false),
       astronomy: noSun,
       now: NOW,
     });
@@ -102,20 +109,50 @@ describe("buildTimeline", () => {
   });
 
   /**
-   * The daily payload carries no sun times, so inferring later days from a
-   * 24-hour offset would drift and be wrong in the season people notice.
+   * Every day gets its own pair, taken from that day's record rather than
+   * inferred from a 24-hour offset, which would drift and be wrong in exactly
+   * the season people notice.
    */
-  it("adds no sun rows outside the hourly window", () => {
+  it("marks sunrise and sunset on the later days too", () => {
     const rows = buildTimeline({
-      hourly: hours(new Array(4).fill(15)),
-      daily: days(6),
+      hourly: hours(new Array(24).fill(15)),
+      daily: days(4),
       astronomy,
       now: NOW,
     });
 
-    // Sunset is 10 hours out, past the 4 hours of hourly data.
     const events = rows.filter((row) => row.kind === "sun");
-    expect(events).toHaveLength(1);
+
+    // Today's pair from astronomy, plus a pair for each of the four days.
+    expect(events).toHaveLength(2 + 8);
+    expect(
+      events.filter((row) => row.kind === "sun" && row.event === "sunrise"),
+    ).toHaveLength(5);
+  });
+
+  it("omits a day's sun rows where the vendor omitted the times", () => {
+    const rows = buildTimeline({
+      hourly: hours(new Array(4).fill(15)),
+      daily: days(6, NOW + 60 * HOUR, false),
+      astronomy: noSun,
+      now: NOW,
+    });
+
+    expect(rows.filter((row) => row.kind === "sun")).toHaveLength(0);
+  });
+
+  // Today's record is inside the hourly window, so its pair must not be added
+  // a second time alongside the one from the astronomy block.
+  it("does not repeat a sun event already placed among the hours", () => {
+    const rows = buildTimeline({
+      hourly: hours(new Array(48).fill(15)),
+      daily: days(8, NOW),
+      astronomy,
+      now: NOW,
+    });
+
+    const keys = rows.filter((row) => row.kind === "sun").map((row) => row.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it("drops hours that have already passed", () => {

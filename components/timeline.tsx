@@ -4,7 +4,12 @@ import { memo } from "react";
 
 import { WeatherIcon } from "@/components/weather-icon";
 import { Temperature } from "@/components/temperature";
-import { formatDayName, formatHour, type Units } from "@/lib/format";
+import {
+  formatDayName,
+  formatHour,
+  formatTimeRounded,
+  type Units,
+} from "@/lib/format";
 import { spinePath, type TimelineRow } from "@/lib/timeline/timeline";
 
 /**
@@ -266,8 +271,11 @@ function SunRow({
 }) {
   return (
     <>
-      <span className="type-label w-12 shrink-0 text-2xs tabular-nums text-[color:var(--sun)]">
-        {formatHour(row.time, timeZone)}
+      {/* The hour alone said "8PM" for a sunset at 8:41, which is the one row
+          on the timeline where the minutes are the point. Rounded to ten, to
+          match the card and because the exact minute is false precision. */}
+      <span className="w-12 shrink-0 text-2xs tabular-nums text-[color:var(--sun)]">
+        {formatTimeRounded(row.time, timeZone).replace(/\s?([ap])\.?m\.?/i, "$1m")}
       </span>
 
       <span

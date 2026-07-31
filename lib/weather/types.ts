@@ -90,6 +90,13 @@ export type DailyPoint = {
   /** Local midday for the day, as OWM stamps it. */
   date: number;
   condition: ConditionRef;
+  /**
+   * This day's own sun times. Null where OWM omitted them. Carried per day
+   * rather than only in `astronomy`, which describes today alone, so the
+   * timeline can mark sunrise and sunset on every day it shows.
+   */
+  sunrise: number | null;
+  sunset: number | null;
   /** Celsius */
   high: number;
   /** Celsius */
