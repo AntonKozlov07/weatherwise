@@ -30,6 +30,13 @@ const MAX_DEGREES = 35;
 
 type Offset = { x: number; y: number };
 
+/**
+ * What consumers receive. `live` distinguishes a phone actually being tilted
+ * from the ambient drift, which matters because the two drive the gradient in
+ * different ways: one follows the hand, the other loops on its own.
+ */
+export type Tilt = { x: number; y: number; live: boolean };
+
 type OrientationConstructor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
@@ -70,7 +77,7 @@ export async function requestTiltPermission(): Promise<boolean> {
 
 const STILL: Offset = { x: 0, y: 0 };
 
-export function useTilt(enabled: boolean): Offset {
+export function useTilt(enabled: boolean): Tilt {
   const [offset, setOffset] = useState<Offset>(STILL);
   const target = useRef<Offset>({ x: 0, y: 0 });
   const current = useRef<Offset>({ x: 0, y: 0 });
@@ -151,5 +158,10 @@ export function useTilt(enabled: boolean): Offset {
     };
   }, [enabled, reduced]);
 
-  return reduced ? STILL : offset;
+  // Derived, not stored. Whether orientation is driving this is already known
+  // from the inputs, and putting it in state would mean writing to state from
+  // inside the effect that sets the loop up.
+  return reduced
+    ? { ...STILL, live: false }
+    : { x: offset.x, y: offset.y, live: enabled };
 }

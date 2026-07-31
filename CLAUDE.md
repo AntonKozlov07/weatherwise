@@ -424,6 +424,31 @@ service worker keeps serving cached assets, and that already caused one round of
     absent. It would also have needed history One Call 4.0's timeline endpoints
     do not carry.
 
+71. **Weather motion lives on the hero card and nowhere else,** by request.
+    Rain, snow, wind and fog, as CSS-animated spans with staggered delays rather
+    than a canvas: a render loop running whenever the app is open is a poor
+    trade for an effect measured in single-digit opacity. Particle positions come
+    from an index-seeded pseudo-random, not `Math.random`, or the server and
+    client disagree and React replaces the layer on every load. Wind scales with
+    the actual gust, so it carries information instead of being decoration.
+
+72. **Sunrise and sunset are stated on the card, rounded to ten minutes.** The
+    timeline only carries a sun row while the event is still ahead, so from
+    mid-morning the day appeared to have no sunrise at all. Ten minutes rather
+    than the minute because sunset to the minute is false precision: it moves
+    with your horizon and it is never the number anyone acts on.
+
+73. **Tilt drives the gradient, not only the glint,** and the greeting moves
+    with the card from a single lifted hook. When tilt is live the looping
+    animation is switched off: a keyframe animation on `background-position`
+    overrides an inline value for the same property, so leaving both on makes
+    the phone appear to do nothing.
+
+74. **Explore uses the timeline's vocabulary.** It was the last screen still on
+    filled pills and filled cards, which made it read as a different app bolted
+    on. Rows separated by hairlines, labels in small caps, selection shown by an
+    underline that scales from the centre.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
@@ -432,6 +457,7 @@ Outstanding:
 - **Safe-area behaviour is unconfirmed.** Desktop reports zero insets, so the double-inset fix below the nav can only be judged on a real device.
 - **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
 - **Nothing in the redesign has been seen rendered.** The timeline, scrubber and expanded hero are verified through the DOM only: geometry, overflow, dismissal, focus and the absence of clipping at 375x667 and 393x852 with simulated insets, at both text sizes. The browser available here does not composite, so no screenshot exists and no animation has been watched. Motion, the glint, and the FLIP in flight all need a real screen.
+- **The gradient palette was rebuilt around a contrast floor.** 37 of 72 stops failed WCAG AA against the text on them, the worst at 1.17:1, which is what "the gradient makes the text invisible" was. Stops are now darkened programmatically until both weights of on-band text clear 4.5:1, and the test asserts it for all 24 combinations, so a future palette edit cannot quietly reintroduce it. The band is darker and more saturated than before as a direct result.
 - **Threshold rules have never fired against a real forecast.** The engine and the transition logic are covered by tests, but the cron path that evaluates them runs only on Vercel with `DATABASE_URL` and `CRON_SECRET` set.
 
 ---

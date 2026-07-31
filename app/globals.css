@@ -420,6 +420,62 @@
     background: color-mix(in oklab, var(--sun) 45%, transparent);
   }
 
+  /* ---- Explore ----------------------------------------------------------
+     Deliberately the same vocabulary as the timeline: rows separated by
+     hairlines, labels in the small caps treatment, selection shown by an
+     underline. Explore was the last screen still using filled pills and filled
+     cards, which made it read as a different app bolted on (Decisions Log 74). */
+
+  .ww-tab {
+    position: relative;
+    color: var(--text-faint);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .ww-tab[data-selected] {
+    color: var(--text);
+  }
+
+  .ww-tab::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1.5px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    /* Scales from the centre rather than fading, so moving between tabs reads
+       as one underline travelling instead of two crossfading. */
+    transform: scaleX(0);
+    transition: transform var(--dur-base) var(--ease-out);
+  }
+
+  .ww-tab[data-selected]::after {
+    transform: scaleX(1);
+  }
+
+  .ww-article {
+    position: relative;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .ww-article::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--border);
+  }
+
+  li:last-child > .ww-article::after {
+    display: none;
+  }
+
+  .ww-article:active {
+    opacity: 0.6;
+  }
+
   /* ---- Time scrubber ---------------------------------------------------- */
 
   .ww-scrub-track {
@@ -465,16 +521,39 @@
      tint someone applied and starts it reading as a signal. */
 
   .ww-hero-band {
-    background:
-      linear-gradient(
-        145deg,
-        var(--grad-0) 0%,
-        var(--grad-1) 52%,
-        var(--grad-2) 100%
-      );
+    /* Oversized so there is somewhere to travel to. A gradient at 100% has no
+       slack, and animating background-position on it does nothing at all. */
+    background-image: linear-gradient(
+      115deg,
+      var(--grad-0) 0%,
+      var(--grad-1) 30%,
+      var(--grad-2) 55%,
+      var(--grad-1) 78%,
+      var(--grad-0) 100%
+    );
+    background-size: 260% 260%;
     box-shadow: var(--elevation-card);
-    /* Crossfades with the theme rather than cutting, matching :root. */
-    transition: background var(--dur-theme) var(--ease-in-out);
+    transition: background-color var(--dur-theme) var(--ease-in-out);
+  }
+
+  /* The greeting is painted with the same idea, so the two move together rather
+     than one being alive and the other frozen beside it. */
+  .ww-gradient-drift {
+    background-size: 220% 220%;
+    animation: ww-drift 22s var(--ease-in-out) infinite;
+  }
+
+  /*
+    Tilt is driving the position from an inline style, so the loop has to stop.
+    A keyframe animation on background-position overrides an inline value for
+    the same property, so leaving both on means the phone appears to do nothing.
+  */
+  [data-tilt="live"] {
+    animation: none !important;
+    background-size: 240% 240%;
+    /* Smoothed in the hook already; this only takes the edge off the last
+       few pixels so the highlight settles rather than stopping dead. */
+    transition: background-position 90ms linear;
   }
 
   .ww-hero-tap {
@@ -491,19 +570,85 @@
     position: absolute;
     inset: -30%;
     pointer-events: none;
+    /* Raised from 0.16. The gradient stops had to be darkened for text
+       legibility, and the highlight went with them. */
     background: radial-gradient(
-      42% 42% at 30% 22%,
-      rgb(255 255 255 / 0.16),
-      transparent 70%
+      44% 44% at 30% 22%,
+      rgb(255 255 255 / 0.26),
+      transparent 72%
     );
     will-change: transform;
   }
 
+  /* ---- Weather motion on the hero card ---------------------------------
+     Confined to this one card by request. Compositor-only properties, so none
+     of it costs a layout or a paint on the main thread. */
+
+  .ww-fx {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .ww-drop {
+    position: absolute;
+    top: -12%;
+    width: 1px;
+    height: 14px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(255 255 255 / 0.75)
+    );
+    animation: ww-rain linear infinite;
+  }
+
+  .ww-flake {
+    position: absolute;
+    top: -8%;
+    border-radius: var(--radius-pill);
+    background: rgb(255 255 255 / 0.9);
+    animation: ww-snow linear infinite;
+  }
+
+  .ww-fog {
+    position: absolute;
+    left: -60%;
+    width: 220%;
+    height: 34%;
+    border-radius: var(--radius-pill);
+    /* Soft on both ends, so the band has no edge to give itself away. */
+    background: radial-gradient(
+      50% 50% at 50% 50%,
+      rgb(226 230 234 / 0.16),
+      transparent 72%
+    );
+    filter: blur(6px);
+    animation: ww-fog-drift linear infinite;
+  }
+
+  .ww-streak {
+    position: absolute;
+    left: -40%;
+    height: 1px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgb(255 255 255 / 0.85),
+      transparent
+    );
+    animation: ww-gust linear infinite;
+  }
+
   .ww-glint-far {
     background: radial-gradient(
-      54% 54% at 78% 86%,
-      rgb(255 255 255 / 0.07),
-      transparent 72%
+      56% 56% at 78% 86%,
+      rgb(255 255 255 / 0.13),
+      transparent 74%
     );
   }
 
@@ -615,6 +760,66 @@
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Gradient drift. Both the hero band and the greeting move, so one is never
+   alive beside a frozen copy of the same idea. */
+@keyframes ww-drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes ww-drift-x {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 0%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@keyframes ww-rain {
+  to {
+    /* Past the bottom edge, and slightly across: rain does not fall straight
+       down on a card that also shows wind. */
+    transform: translate3d(-14px, 260px, 0);
+  }
+}
+
+@keyframes ww-snow {
+  to {
+    transform: translate3d(18px, 240px, 0);
+  }
+}
+
+@keyframes ww-fog-drift {
+  to {
+    transform: translate3d(46%, 0, 0);
+  }
+}
+
+@keyframes ww-gust {
+  0% {
+    transform: translate3d(0, 0, 0) scaleX(0.4);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(280%, 0, 0) scaleX(1);
+    opacity: 0;
   }
 }
 

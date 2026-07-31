@@ -64,6 +64,11 @@
   --alert-warning: #e05c4c;
   --alert-warning-bg: rgb(224 92 76 / 0.14);
 
+  /* Text sitting on the hero's gradient band. Not --text-dim: the band is much
+     lighter than a card, and --text-dim falls to 2.5:1 on it. Every gradient
+     stop is checked against this value in condition-theme.test.ts. */
+  --on-band-dim: #dcd9d3;
+
   /* Sunrise and sunset on the timeline. Amber and fixed, deliberately outside
      the condition theme: these are events on the line, not weather, and tinting
      them with the sky would make them read as more of the same. */

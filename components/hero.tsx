@@ -4,20 +4,26 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 
 import { Temperature } from "@/components/temperature";
+import { WeatherFX, WindFX } from "@/components/weather-fx";
 import { WeatherIcon } from "@/components/weather-icon";
 import { topAnswers, type ActivityAnswer } from "@/lib/activities/activities";
 import {
   formatDayName,
   formatHour,
+  aqiSeverity,
   formatTemperature,
   formatTime,
+  formatTimeRounded,
   formatWind,
   type Units,
 } from "@/lib/format";
+import { gradientMotion } from "@/lib/gradient-motion";
 import { useCountUp } from "@/lib/hooks/use-count-up";
-import { useTilt } from "@/lib/hooks/use-tilt";
+import type { Tilt } from "@/lib/hooks/use-tilt";
 import { voiceLine } from "@/lib/voice/voice";
 import type {
+  AirQuality,
+  Astronomy,
   ConditionRef,
   CurrentConditions,
   HourlyPoint,
@@ -66,9 +72,13 @@ type Props = {
   hourly: HourlyPoint[];
   timeZone: string;
   units: Units;
-  motionEffects: boolean;
+  /** Lifted to the screen so the greeting and the card lean together. */
+  tilt: Tilt;
   /** True while the scrubber is away from now, which changes the time label. */
   scrubbed: boolean;
+  airQuality: AirQuality | null;
+  windGust: number;
+  astronomy: Astronomy;
 };
 
 export function Hero({
@@ -77,8 +87,11 @@ export function Hero({
   hourly,
   timeZone,
   units,
-  motionEffects,
+  tilt,
   scrubbed,
+  airQuality,
+  windGust,
+  astronomy,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("closed");
   const [drag, setDrag] = useState(0);
@@ -88,7 +101,6 @@ export function Hero({
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
-  const tilt = useTilt(motionEffects);
   const expanded = phase !== "closed";
 
   const close = useCallback(() => {
@@ -223,6 +235,9 @@ export function Hero({
             tilt={tilt}
             timeLabel={timeLabel}
             line={line}
+            windGust={windGust}
+            astronomy={astronomy}
+            timeZone={timeZone}
           />
         </button>
       </div>
@@ -297,6 +312,9 @@ export function Hero({
               line={line}
               answers={answers}
               active={phase === "open"}
+              airQuality={airQuality}
+              windGust={windGust}
+              astronomy={astronomy}
             />
           </div>
         </div>,
@@ -317,24 +335,40 @@ function HeroBand({
   tilt,
   timeLabel,
   line,
+  windGust,
+  astronomy,
+  timeZone,
 }: {
   view: Props["view"];
   units: Units;
-  tilt: { x: number; y: number };
+  tilt: Tilt;
   timeLabel: string;
   line: string;
+  windGust: number;
+  astronomy: Astronomy;
+  timeZone: string;
 }) {
+  const motion = gradientMotion(tilt);
+
   return (
-    <div className="ww-hero-band relative overflow-hidden rounded-card p-5">
+    <div
+      className={`ww-hero-band relative overflow-hidden rounded-card p-5 ${motion.className}`}
+      data-tilt={motion.dataTilt}
+      style={motion.style}
+    >
+      <WeatherFX condition={view.condition} />
+      <WindFX gustKph={windGust} />
       <Glint tilt={tilt} />
 
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="type-label truncate text-2xs">{timeLabel}</p>
+          <p className="type-label truncate text-2xs text-[color:var(--on-band-dim)]">
+            {timeLabel}
+          </p>
           <p className="type-temp mt-1 text-[3.25rem]">
             <Temperature celsius={view.temperature} units={units} withUnit />
           </p>
-          <p className="mt-1 truncate text-sm text-text-dim">
+          <p className="mt-1 truncate text-sm text-[color:var(--on-band-dim)]">
             {view.condition.label} · feels{" "}
             <Temperature celsius={view.feelsLike} units={units} />
           </p>
@@ -346,8 +380,71 @@ function HeroBand({
       {/* The voice line rides in the collapsed state too, clamped to one line.
           It is the most useful thing on the screen and hiding it behind a tap
           would waste it. */}
-      <p className="relative mt-3 line-clamp-1 text-xs text-text-dim">{line}</p>
+      <p className="relative mt-3 line-clamp-1 text-xs text-[color:var(--on-band-dim)]">
+        {line}
+      </p>
+
+      <SunTimes astronomy={astronomy} timeZone={timeZone} />
     </div>
+  );
+}
+
+/**
+ * Sunrise and sunset, always shown.
+ *
+ * The timeline only carries a sun row while the event is still ahead, so from
+ * mid-morning the day looks like it never had a sunrise. Here both are stated
+ * outright, whichever side of them you are on.
+ *
+ * Rounded to ten minutes, because sunset to the minute is false precision: it
+ * moves with your horizon and it is never the number anyone acts on
+ * (Decisions Log 72).
+ */
+function SunTimes({
+  astronomy,
+  timeZone,
+}: {
+  astronomy: Astronomy;
+  timeZone: string;
+}) {
+  if (astronomy.sunrise === null && astronomy.sunset === null) return null;
+
+  return (
+    <p className="type-label relative mt-3 flex items-center gap-4 text-2xs text-[color:var(--on-band-dim)]">
+      {astronomy.sunrise !== null && (
+        <span className="flex items-center gap-1.5">
+          <SunArrow direction="up" />
+          {formatTimeRounded(astronomy.sunrise, timeZone)}
+        </span>
+      )}
+      {astronomy.sunset !== null && (
+        <span className="flex items-center gap-1.5">
+          <SunArrow direction="down" />
+          {formatTimeRounded(astronomy.sunset, timeZone)}
+        </span>
+      )}
+    </p>
+  );
+}
+
+function SunArrow({ direction }: { direction: "up" | "down" }) {
+  return (
+    <svg
+      width="9"
+      height="9"
+      viewBox="0 0 10 10"
+      aria-hidden="true"
+      fill="none"
+      className="shrink-0 text-[color:var(--sun)]"
+    >
+      <path
+        d={direction === "up" ? "M5 9V1M2 4l3-3 3 3" : "M5 1v8M2 6l3 3 3-3"}
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -359,7 +456,7 @@ function HeroBand({
  * that reaches the border stops looking like light and starts looking like a
  * shape.
  */
-function Glint({ tilt }: { tilt: { x: number; y: number } }) {
+function Glint({ tilt }: { tilt: Tilt }) {
   return (
     <>
       <span
@@ -390,29 +487,47 @@ function ExpandedContent({
   line,
   answers,
   active,
+  airQuality,
+  windGust,
+  astronomy,
 }: {
   view: Props["view"];
   current: CurrentConditions;
   units: Units;
-  tilt: { x: number; y: number };
+  tilt: Tilt;
   timeLabel: string;
   timeZone: string;
   line: string;
   answers: ActivityAnswer[];
   active: boolean;
+  airQuality: AirQuality | null;
+  windGust: number;
+  astronomy: Astronomy;
 }) {
+  const expandedMotion = gradientMotion(tilt);
+
   return (
     <div className="ww-hero-body">
-      <div className="ww-hero-band relative overflow-hidden rounded-card p-5">
+      <div
+        className={`ww-hero-band relative overflow-hidden rounded-card p-5 ${expandedMotion.className}`}
+        data-tilt={expandedMotion.dataTilt}
+        style={expandedMotion.style}
+      >
+        <WeatherFX condition={view.condition} />
+        <WindFX gustKph={windGust} />
         <Glint tilt={tilt} />
 
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="type-label truncate text-2xs">{timeLabel}</p>
+            <p className="type-label truncate text-2xs text-[color:var(--on-band-dim)]">
+              {timeLabel}
+            </p>
             <p className="type-temp mt-1 text-[3.75rem]">
               <Temperature celsius={view.temperature} units={units} withUnit />
             </p>
-            <p className="mt-1 text-sm text-text-dim">{view.condition.label}</p>
+            <p className="mt-1 text-sm text-[color:var(--on-band-dim)]">
+              {view.condition.label}
+            </p>
           </div>
 
           <WeatherIcon condition={view.condition} size={84} className="shrink-0" />
@@ -447,7 +562,7 @@ function ExpandedContent({
         ))}
       </ul>
 
-      <dl className="mt-5 grid grid-cols-4 gap-2">
+      <dl className="mt-5 grid grid-cols-3 gap-2">
         <Metric
           label="Feels"
           value={view.feelsLike}
@@ -476,6 +591,34 @@ function ExpandedContent({
           index={answers.length + 4}
           format={(value) => String(Math.round(value))}
         />
+
+        {/*
+          Air quality is a category, not a quantity, so it does not count up:
+          watching "Good" tick upward from nothing would be nonsense. Absent
+          entirely where the pollution endpoint returned nothing, rather than
+          showing a dash that looks like a reading of zero.
+        */}
+        {airQuality && (
+          <div
+            className="ww-stagger rounded-inner bg-surface px-2 py-3 text-center"
+            style={{ "--i": answers.length + 5 } as React.CSSProperties}
+          >
+            <dd className="text-sm">{aqiSeverity(airQuality.index)}</dd>
+            <dt className="type-label mt-1 text-2xs">Air</dt>
+          </div>
+        )}
+
+        <div
+          className="ww-stagger rounded-inner bg-surface px-2 py-3 text-center"
+          style={{ "--i": answers.length + 6 } as React.CSSProperties}
+        >
+          <dd className="text-sm tabular-nums">
+            {astronomy.sunset === null
+              ? "--"
+              : formatTimeRounded(astronomy.sunset, timeZone).replace(/\s?[ap]\.?m\.?/i, "")}
+          </dd>
+          <dt className="type-label mt-1 text-2xs">Sunset</dt>
+        </div>
       </dl>
 
       <p

@@ -15,6 +15,8 @@ const TEXT = "#edeae4";
 const TEXT_DIM = "#a6a49f";
 const BG = "#16191d";
 const SURFACE = "#1d2126";
+/** --on-band-dim: the dimmest text allowed on top of the gradient. */
+const ON_BAND_DIM = "#dcd9d3";
 
 const HOUR = 3_600_000;
 const SUNRISE = Date.UTC(2026, 6, 28, 10, 0);
@@ -119,36 +121,44 @@ describe("generated themes", () => {
   );
 
   it.each(combinations)(
-    "gives the bar three usable stops on $condition/$time",
+    "gives the bar three distinct stops on $condition/$time",
     ({ condition, time }) => {
       const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
 
       expect(theme.gradient).toHaveLength(3);
       for (const stop of theme.gradient) expect(stop).toMatch(/^#[0-9a-f]{6}$/i);
 
-      // Dark to light, so the band has a direction rather than reading flat.
+      // The first stop anchors the dark end, so the band has a direction rather
+      // than reading flat. The other two are not ordered: each is darkened only
+      // as far as the contrast floor below demands, and forcing a ramp on top of
+      // that would mean either a washed-out stop or an illegible one.
       const lightness = theme.gradient.map((stop) => {
         const { r, g, b } = parseHex(stop);
         return r + g + b;
       });
 
-      expect(lightness[1]).toBeGreaterThan(lightness[0]);
-      expect(lightness[2]).toBeGreaterThan(lightness[1]);
+      expect(lightness[0]).toBeLessThan(lightness[1]);
+      expect(lightness[0]).toBeLessThan(lightness[2]);
+      expect(new Set(theme.gradient).size).toBe(3);
     },
   );
 
-  // White text sits on the bar's brightest stop in the hero, so that one stop
-  // has to stay dark enough to carry it.
+  /**
+   * The bug this exists to prevent: text on the hero was unreadable over the
+   * lighter parts of the band, at worst 1.17:1, because the stops were chosen
+   * to look good and never checked against what sits on them. 37 of 72 stops
+   * failed AA. Every stop is now verified against both weights of text that
+   * appear on the band, so a future palette edit cannot quietly reintroduce it.
+   */
   it.each(combinations)(
-    "keeps the brightest stop below the text on $condition/$time",
+    "carries body text on every stop of $condition/$time",
     ({ condition, time }) => {
       const theme = conditionTheme(CODES[condition], TIMES[time], SUNRISE, SUNSET);
-      const brightest = parseHex(theme.gradient[2]);
-      const text = parseHex(TEXT);
 
-      expect(brightest.r + brightest.g + brightest.b).toBeLessThan(
-        text.r + text.g + text.b,
-      );
+      for (const stop of theme.gradient) {
+        expect(contrastRatio(TEXT, stop)).toBeGreaterThanOrEqual(AA_TEXT);
+        expect(contrastRatio(ON_BAND_DIM, stop)).toBeGreaterThanOrEqual(AA_TEXT);
+      }
     },
   );
 });

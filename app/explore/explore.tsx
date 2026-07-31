@@ -34,7 +34,7 @@ function relativeTime(published: number | null, now: number): string {
 
 function ArticleSkeleton() {
   return (
-    <li className="flex gap-3 rounded-card bg-surface p-4">
+    <li className="ww-article flex gap-4 py-4">
       <div className="flex-1">
         <div className="ww-shimmer h-4 w-full rounded-inner" />
         <div className="ww-shimmer mt-2 h-4 w-3/4 rounded-inner" />
@@ -100,7 +100,7 @@ export function Explore() {
         aria-label="News categories"
         className="mt-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="page-gutter flex gap-2">
+        <div className="page-gutter flex gap-5">
           {NEWS_CATEGORIES.map((candidate) => {
             const selected = candidate === category;
 
@@ -111,11 +111,12 @@ export function Explore() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setCategory(candidate)}
-                className={`ww-press shrink-0 rounded-pill px-4 py-2 text-sm transition-colors ${
-                  selected
-                    ? "bg-surface-raised text-text"
-                    : "bg-surface text-text-dim"
-                }`}
+                /* Underline rather than a filled pill. Pills were the one
+                   remaining piece of the old chrome; the home screen dropped
+                   them when the segmented control went, and two different
+                   selection idioms in one app reads as two apps. */
+                className="ww-tab type-label shrink-0 px-1 pb-2 pt-1 text-2xs"
+                data-selected={selected || undefined}
               >
                 {CATEGORY_LABELS[candidate]}
               </button>
@@ -153,7 +154,7 @@ export function Explore() {
         )}
 
         {state.status === "ready" && state.articles.length > 0 && (
-          <ul key={category} className="flex flex-col gap-3">
+          <ul key={category} className="flex flex-col">
             {state.articles.map((article, index) => (
               <li
                 key={article.id}
@@ -164,13 +165,15 @@ export function Explore() {
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ww-press flex gap-3 rounded-card bg-surface p-4"
+                  className="ww-article flex gap-4 py-4"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-base leading-snug">
                       {article.title}
                     </span>
-                    <span className="mt-2 block truncate text-sm text-text-dim">
+                    {/* Source and age as a label, the same treatment the
+                        timeline gives a row's time. */}
+                    <span className="type-label mt-2 block truncate text-2xs">
                       {article.source}
                       {article.publishedAt !== null &&
                         ` · ${relativeTime(article.publishedAt, state.fetchedAt)}`}

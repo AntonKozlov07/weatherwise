@@ -48,6 +48,22 @@ export function formatTime(time: number, timeZone: string): string {
   }).format(time);
 }
 
+/**
+ * A time rounded to the nearest ten minutes, as "8:40 PM".
+ *
+ * Sunset to the minute is false precision on a forecast card: it changes with
+ * your horizon and it is never the number anyone acts on. Ten minutes is the
+ * granularity of the decision it actually informs (Decisions Log 72).
+ */
+export function formatTimeRounded(
+  time: number,
+  timeZone: string,
+  stepMinutes = 10,
+): string {
+  const step = stepMinutes * 60_000;
+  return formatTime(Math.round(time / step) * step, timeZone);
+}
+
 /** "November 1". */
 export function formatLongDate(time: number, timeZone: string): string {
   return formatter(timeZone, { month: "long", day: "numeric" }).format(time);

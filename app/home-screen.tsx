@@ -19,6 +19,7 @@ import { Timeline } from "@/components/timeline";
 import { formatUpdatedAgo } from "@/lib/format";
 import { useForecast } from "@/lib/hooks/use-forecast";
 import { useGreetingGradient } from "@/lib/hooks/use-greeting-gradient";
+import { useTilt } from "@/lib/hooks/use-tilt";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { buildTimeline } from "@/lib/timeline/timeline";
 import { activeLocation } from "@/lib/preferences";
@@ -45,6 +46,11 @@ function LoadedHome({
   motionEffects: boolean;
 }) {
   const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
+
+  // Lifted to the screen rather than owned by the hero, so the greeting and the
+  // card read the same tilt and lean together. Two hooks would mean two
+  // smoothing loops a frame apart.
+  const tilt = useTilt(motionEffects);
 
   const rows = useMemo(
     () =>
@@ -138,7 +144,12 @@ function LoadedHome({
       )}
 
       <div className="ww-rise page-gutter">
-        <Greeting name={name} gradient={gradient} timeZone={bundle.location.timeZone} />
+        <Greeting
+          name={name}
+          gradient={gradient}
+          timeZone={bundle.location.timeZone}
+          tilt={tilt}
+        />
         <p className="type-label mt-1 text-2xs">
           {bundle.location.name} · {formatUpdatedAgo(bundle.current.observedAt)}
         </p>
@@ -154,8 +165,11 @@ function LoadedHome({
           hourly={bundle.hourly}
           timeZone={bundle.location.timeZone}
           units={units}
-          motionEffects={motionEffects}
+          tilt={tilt}
           scrubbed={scrubbed}
+          airQuality={bundle.airQuality}
+          windGust={bundle.current.wind.gust ?? bundle.current.wind.speed}
+          astronomy={bundle.astronomy}
         />
       </div>
 
