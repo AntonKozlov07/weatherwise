@@ -55,7 +55,7 @@ const BASEMAP_STYLE: StyleSpecification = {
   layers: [
     // Painted under everything, so the canvas is never transparent even before
     // the first tile arrives.
-    { id: "background", type: "background", paint: { "background-color": "#1E2024" } },
+    { id: "background", type: "background", paint: { "background-color": "#16191d" } },
     { id: "basemap", type: "raster", source: "basemap" },
   ],
 };
@@ -363,7 +363,7 @@ export function WeatherMap() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="ww-press type-label rounded-pill border border-hairline px-5 py-2 text-xs"
+              className="ww-press type-label rounded-pill border border-border px-5 py-2 text-xs"
             >
               Try again
             </button>
@@ -389,7 +389,7 @@ export function WeatherMap() {
 
           {layer !== "off" && (
             <label className="card-floating pointer-events-auto flex items-center gap-3 self-start rounded-pill px-4 py-2">
-              <span className="type-label text-[0.625rem]">Opacity</span>
+              <span className="type-label text-2xs">Opacity</span>
               <input
                 type="range"
                 min={0.1}
@@ -466,7 +466,7 @@ export function WeatherMap() {
 
         {/* Sits above the floating nav rather than behind it. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-[6.5rem] p-4">
-          <p className="pointer-events-auto self-start rounded-pill bg-black/50 px-3 py-1 text-[0.6875rem] text-text-dim">
+          <p className="pointer-events-auto self-start rounded-pill bg-black/50 px-3 py-1 text-xs text-text-dim">
             <a
               href="https://openweathermap.org/"
               target="_blank"

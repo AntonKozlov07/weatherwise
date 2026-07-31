@@ -18,7 +18,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="ww-press w-full rounded-pill bg-accent px-6 py-4 text-base font-medium text-white disabled:opacity-40"
+      className="ww-press w-full rounded-pill bg-accent px-6 py-4 text-base font-medium text-[color:var(--accent-contrast)] disabled:opacity-40"
     >
       {children}
     </button>
@@ -36,7 +36,7 @@ export function GhostButton({
     <button
       type="button"
       onClick={onClick}
-      className="ww-press rounded-pill border border-hairline px-5 py-3 text-sm"
+      className="ww-press rounded-pill border border-border px-5 py-3 text-sm"
     >
       {children}
     </button>
@@ -65,7 +65,7 @@ export function TextField({
         placeholder={placeholder}
         autoFocus={autoFocus}
         onChange={(event) => onChange(event.target.value)}
-        className="selectable rounded-inner border border-hairline bg-surface px-4 py-3 text-base outline-none focus:border-accent"
+        className="selectable rounded-inner border border-border bg-surface px-4 py-3 text-base outline-none focus:border-accent"
       />
     </label>
   );

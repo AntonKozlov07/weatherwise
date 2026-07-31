@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
 import { LocationSearch } from "@/components/location-search";
+import { PushSettings } from "@/components/push-settings";
 import { resetPreferences, updatePreferences, usePreferences } from "@/components/preferences-provider";
 import { GhostButton, OptionGroup, TextField, Toggle } from "@/components/ui";
 import type { FontSize, SavedLocation, Theme, Units } from "@/lib/preferences";
@@ -56,8 +57,8 @@ export function Settings() {
 
   return (
     <div className="screen">
-      <main className="screen-scroll ww-rise flex flex-col gap-9 px-5 pb-6 pt-6">
-        <h1 className="type-heading text-2xl">Settings</h1>
+      <main className="screen-scroll ww-rise page-gutter flex flex-col gap-8 pb-6 pt-2">
+        <h1 className="screen-title">Settings</h1>
 
         <Section title="You">
           <TextField
@@ -105,10 +106,12 @@ export function Settings() {
         <Section title="Notifications">
           <Toggle
             label="Alert banners"
-            hint="Shows severe weather warnings inside the app. This does not send push notifications."
+            hint="Shows severe weather warnings inside the app."
             checked={preferences.alertBanners}
             onChange={(alertBanners) => updatePreferences({ alertBanners })}
           />
+
+          <PushSettings preferences={preferences} />
         </Section>
 
         <Section title="Saved locations">
@@ -143,7 +146,7 @@ export function Settings() {
                     </button>
 
                     {active && (
-                      <span className="type-label shrink-0 text-[0.625rem] text-accent">
+                      <span className="type-label shrink-0 text-2xs text-accent">
                         Showing
                       </span>
                     )}
@@ -184,7 +187,7 @@ export function Settings() {
                     resetPreferences();
                     router.replace("/onboarding");
                   }}
-                  className="ww-press rounded-pill bg-surface-raised px-5 py-3 text-sm"
+                  className="ww-press rounded-pill border border-border bg-surface-raised px-5 py-3 text-sm"
                 >
                   Reset everything
                 </button>

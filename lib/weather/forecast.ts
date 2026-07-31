@@ -1,10 +1,12 @@
 import type { Coordinates } from "./coordinates";
+import { buildNowcast } from "./nowcast";
 import {
   fetchAirPollution,
   fetchAlerts,
   fetchCurrent,
   fetchDaily,
   fetchHourly,
+  fetchMinutely,
   reverseGeocode,
 } from "./openweather/client";
 import {
@@ -14,6 +16,7 @@ import {
   normalizeCurrent,
   normalizeDaily,
   normalizeHourly,
+  normalizeMinutely,
 } from "./normalize";
 import type { ForecastBundle } from "./types";
 
@@ -39,12 +42,15 @@ export async function getForecastBundle(
   { latitude, longitude }: Coordinates,
   now: number = Date.now(),
 ): Promise<ForecastBundle> {
-  const [current, hourly, daily, place, air] = await Promise.all([
+  const [current, hourly, daily, minutely, place, air] = await Promise.all([
     fetchCurrent(latitude, longitude),
     // Settled rather than awaited outright, so one empty rail does not take
     // down a screen that is otherwise fine.
     fetchHourly(latitude, longitude).catch(() => null),
     fetchDaily(latitude, longitude).catch(() => null),
+    // Regional. Absent for much of the world, and its own function already
+    // swallows that into a null.
+    fetchMinutely(latitude, longitude),
     reverseGeocode(latitude, longitude),
     fetchAirPollution(latitude, longitude),
   ]);
@@ -72,6 +78,7 @@ export async function getForecastBundle(
     astronomy: normalizeAstronomy(record, daily),
     airQuality: normalizeAirQuality(air),
     alerts: normalizeAlerts(alerts),
+    nowcast: buildNowcast(normalizeMinutely(minutely)),
     fetchedAt: now,
   };
 }

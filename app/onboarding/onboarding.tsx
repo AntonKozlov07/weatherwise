@@ -56,7 +56,7 @@ export function Onboarding() {
     // the whole viewport and therefore taller than the shell's content box once
     // the safe-area insets are applied. That overflow is what pushed the
     // Continue button off the bottom of the screen (Decisions Log 52).
-    <main className="screen px-6">
+    <main className="screen page-gutter">
       {/* Steps scroll; the dots and buttons below never do, so Continue is
           always reachable no matter how short the phone is. */}
       <div
@@ -174,7 +174,7 @@ export function Onboarding() {
               <button
                 type="button"
                 onClick={() => finish()}
-                className="ww-press w-full rounded-pill border border-hairline px-6 py-4 text-base"
+                className="ww-press w-full rounded-pill border border-border px-6 py-4 text-base"
               >
                 Skip for now
               </button>

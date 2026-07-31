@@ -87,7 +87,7 @@ function DetailRow({
   return (
     <div className="flex items-center gap-2">
       <span className="shrink-0 text-text-dim">{icon}</span>
-      <span className="truncate text-[0.8125rem] leading-tight">{children}</span>
+      <span className="truncate text-sm leading-tight">{children}</span>
     </div>
   );
 }
@@ -125,7 +125,7 @@ function CardBody({ card, units }: { card: CardContent; units: Units }) {
           )}
         </p>
 
-        <span className="flex shrink-0 items-center gap-1 pt-1 text-[0.8125rem] text-text-dim">
+        <span className="flex shrink-0 items-center gap-1 pt-1 text-sm text-text-dim">
           <RainChanceIcon size={17} />
           {Math.round(card.chance)}%
         </span>

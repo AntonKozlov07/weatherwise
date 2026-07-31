@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { AlertBanner } from "@/components/alert-banner";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
+import { ConditionThemeProvider } from "@/components/condition-theme-provider";
+import { NowcastCard } from "@/components/nowcast-card";
 import { ForecastRail } from "@/components/forecast-rail";
 import { Greeting } from "@/components/greeting";
 import { NowCard } from "@/components/now-card";
@@ -55,16 +57,29 @@ function LoadedHome({
     // `justify-between` spreads leftover height across every gap instead of
     // dumping it into one spacer. A single growing spacer looked fine at 800px
     // tall and opened a 267px hole at 956 (Decisions Log 50).
-    <div className="flex min-h-full flex-1 flex-col justify-between gap-4">
+    <div className="flex min-h-full flex-1 flex-col justify-between gap-stack">
+      {/* Sets --bg and --accent on the document root from this location's own
+          condition and sun times. Renders nothing itself. */}
+      <ConditionThemeProvider
+        current={bundle.current}
+        astronomy={bundle.astronomy}
+      />
+
       {staleSince !== null && <OfflineBanner staleSince={staleSince} />}
 
-      {alertBanners && bundle.alerts.length > 0 && (
-        <AlertBanner alerts={bundle.alerts} />
+      {/* Above everything, in the flow, so it pushes content down rather than
+          covering it. Renders nothing when there is nothing to show. */}
+      {alertBanners && (
+        <AlertBanner
+          alerts={bundle.alerts}
+          timeZone={bundle.location.timeZone}
+          now={bundle.fetchedAt}
+        />
       )}
 
-      <div className="ww-rise px-5">
+      <div className="ww-rise page-gutter">
         <Greeting name={name} gradient={gradient} timeZone={bundle.location.timeZone} />
-        <p className="type-label mt-1 text-[0.625rem]">
+        <p className="type-label mt-1 text-2xs">
           {bundle.location.name} · {formatUpdatedAgo(bundle.current.observedAt)}
         </p>
       </div>
@@ -82,6 +97,15 @@ function LoadedHome({
             bundle.hourly.slice(0, 6).map((hour) => hour.precipitationChance),
           )}
         />
+      </div>
+
+      {/* Directly below the current conditions. Absent entirely where One Call
+          publishes no minutely data. */}
+      <div
+        className="ww-rise"
+        style={{ "--rise-delay": "90ms" } as React.CSSProperties}
+      >
+        <NowcastCard nowcast={bundle.nowcast} />
       </div>
 
       <div

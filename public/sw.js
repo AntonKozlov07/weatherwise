@@ -83,6 +83,73 @@ self.addEventListener("message", (event) => {
   }
 });
 
+/**
+ * Severe weather push.
+ *
+ * The payload is built server-side in lib/push/send.ts. A malformed one still
+ * shows something rather than nothing: a push that arrives and displays no
+ * notification is a permission violation in some browsers.
+ */
+self.addEventListener("push", (event) => {
+  let payload = {};
+
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+
+  const title = payload.title || "Severe weather alert";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || "Tap for details.",
+      icon: payload.icon || "/icons/manifest-icon-192.maskable.png",
+      badge: payload.badge || "/icons/manifest-icon-192.maskable.png",
+      // Tagged by alert id, so the same warning replaces rather than stacks.
+      tag: payload.tag,
+      data: payload.data || {},
+      requireInteraction: false,
+    }),
+  );
+});
+
+/**
+ * Focus an open window rather than opening a second one.
+ *
+ * `clients.matchAll` with `includeUncontrolled` catches a window that loaded
+ * before this worker took over, which is the common case right after an update.
+ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const target =
+    data.latitude !== undefined && data.longitude !== undefined
+      ? `/?lat=${data.latitude}&lon=${data.longitude}`
+      : "/";
+
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      for (const client of windows) {
+        if (new URL(client.url).origin !== self.location.origin) continue;
+
+        await client.focus();
+        // Navigate the existing window instead of opening another one.
+        if ("navigate" in client) await client.navigate(target);
+        return;
+      }
+
+      await self.clients.openWindow(target);
+    })(),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 

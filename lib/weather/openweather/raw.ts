@@ -137,6 +137,26 @@ export function isDailyResponse(
   return typeof first.temp === "object" && first.temp !== null;
 }
 
+/**
+ * One minute of the precipitation nowcast, from /onecall/timeline/1min.
+ * Published for some regions only.
+ */
+export type RawMinuteRecord = {
+  dt: number;
+  /** mm/h */
+  precipitation: number;
+};
+
+export function isMinutelyResponse(
+  value: unknown,
+): value is RawEnvelope<RawMinuteRecord> {
+  if (!isEnvelope(value)) return false;
+  if (value.data.length === 0) return true;
+
+  const first = value.data[0] as Partial<RawMinuteRecord>;
+  return typeof first.precipitation === "number";
+}
+
 /** Resolved from /onecall/alert/{id}. Carries no severity, urgency or areas. */
 export type RawAlertDetail = {
   id?: string;

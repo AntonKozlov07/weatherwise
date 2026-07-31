@@ -90,7 +90,7 @@ export function GradientTuner() {
       </p>
 
       <div
-        className="h-16 rounded-inner border border-hairline"
+        className="h-16 rounded-inner border border-border"
         style={{
           backgroundImage: `linear-gradient(90deg, ${gradient.from}, ${gradient.to})`,
         }}
@@ -143,7 +143,7 @@ export function GradientTuner() {
             className={`rounded-pill border px-3 py-1 text-sm ${
               candidate === bucket
                 ? "border-accent bg-surface-raised text-text"
-                : "border-hairline text-text-dim"
+                : "border-border text-text-dim"
             }`}
           >
             {candidate}

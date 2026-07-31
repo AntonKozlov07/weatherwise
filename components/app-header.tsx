@@ -28,7 +28,7 @@ export function AppHeader({ locationName }: { locationName?: string }) {
 
   return (
     <>
-      <header className="relative flex items-center justify-center px-5 pb-3 pt-2">
+      <header className="screen-header">
         <button
           type="button"
           onClick={() => setOpen(true)}

@@ -10,7 +10,7 @@ export function OfflineBanner({ staleSince }: { staleSince: number }) {
   return (
     <p
       role="status"
-      className="mx-5 rounded-inner border border-hairline bg-surface-raised px-4 py-2.5 text-sm text-text-dim"
+      className="mx-5 rounded-inner border border-border bg-surface-raised px-4 py-2.5 text-sm text-text-dim"
     >
       Offline, showing last update ·{" "}
       {formatUpdatedAgo(staleSince).replace("Updated ", "")}

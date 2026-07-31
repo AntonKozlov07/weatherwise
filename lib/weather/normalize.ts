@@ -5,6 +5,7 @@ import type {
   RawDayRecord,
   RawEnvelope,
   RawHourRecord,
+  RawMinuteRecord,
   RawWeather,
 } from "./openweather/raw";
 import type {
@@ -14,6 +15,7 @@ import type {
   CurrentConditions,
   DailyPoint,
   HourlyPoint,
+  MinutelyPoint,
   WeatherAlert,
   Wind,
 } from "./types";
@@ -151,6 +153,21 @@ export function normalizeDaily(
     humidity: day.humidity,
     uvIndex: day.uvi,
     wind: normalizeWind(day.wind_speed, day.wind_deg, day.wind_gust),
+  }));
+}
+
+/**
+ * Minute-by-minute precipitation. Null propagates: the region has no data and
+ * the nowcast card is not rendered at all.
+ */
+export function normalizeMinutely(
+  envelope: RawEnvelope<RawMinuteRecord> | null,
+): MinutelyPoint[] | null {
+  if (!envelope || envelope.data.length === 0) return null;
+
+  return envelope.data.map((minute) => ({
+    time: toMillis(minute.dt),
+    precipitation: minute.precipitation ?? 0,
   }));
 }
 

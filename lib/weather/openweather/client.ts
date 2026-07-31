@@ -6,12 +6,14 @@ import {
   isDailyResponse,
   isGeocodeResponse,
   isHourlyResponse,
+  isMinutelyResponse,
   type RawAirPollution,
   type RawAlertDetail,
   type RawCurrentRecord,
   type RawDayRecord,
   type RawEnvelope,
   type RawHourRecord,
+  type RawMinuteRecord,
 } from "./raw";
 
 /**
@@ -146,6 +148,28 @@ export async function fetchDaily(
   if (!isDailyResponse(payload)) throw malformed("The daily forecast");
 
   return payload;
+}
+
+/**
+ * Minute-by-minute precipitation for the next hour.
+ *
+ * Published for some regions only, so a failure here is not an error: it
+ * returns null and the nowcast card is simply not rendered.
+ */
+export async function fetchMinutely(
+  latitude: number,
+  longitude: number,
+): Promise<RawEnvelope<RawMinuteRecord> | null> {
+  try {
+    const payload = await getJson(
+      `${ONE_CALL_BASE}/timeline/1min?${weatherParams(latitude, longitude)}`,
+      REVALIDATE_SECONDS,
+    );
+
+    return isMinutelyResponse(payload) ? payload : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

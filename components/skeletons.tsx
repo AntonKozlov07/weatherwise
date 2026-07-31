@@ -13,15 +13,18 @@ function Block({ className }: { className: string }) {
 export function HomeSkeleton() {
   return (
     <div aria-hidden="true" className="flex flex-col gap-6">
-      <div className="px-5">
+      <div className="page-gutter">
         <Block className="h-9 w-64" />
         <Block className="mt-3 h-5 w-32" />
       </div>
 
-      <div className="mx-5 rounded-card bg-surface p-5">
+      {/* Dimensions mirror the real cards, so nothing shifts when data lands:
+          the now card's 5.5rem figure, the nowcast's 3.25rem chart, and the
+          rail's min(11.5rem, 52vw) cards. */}
+      <div className="card mx-gutter p-5">
         <Block className="h-5 w-28" />
         <div className="mt-3 flex items-start justify-between gap-4">
-          <Block className="h-20 w-36" />
+          <Block className="h-[5.5rem] w-36" />
           <div className="flex flex-col gap-3 pt-3">
             <Block className="h-5 w-24" />
             <Block className="h-5 w-20" />
@@ -31,11 +34,20 @@ export function HomeSkeleton() {
         <Block className="mt-4 h-5 w-full" />
       </div>
 
-      <Block className="mx-5 h-10 rounded-pill" />
+      <div className="card mx-gutter p-5">
+        <Block className="h-3 w-20" />
+        <Block className="mt-2 h-5 w-48" />
+        <Block className="mt-4 h-[3.25rem] w-full" />
+      </div>
 
-      <div className="flex gap-3 overflow-hidden px-5">
-        {Array.from({ length: 5 }, (_, index) => (
-          <Block key={index} className="h-[8.5rem] w-[5.5rem] shrink-0" />
+      <Block className="mx-gutter h-10 rounded-pill" />
+
+      <div className="page-gutter flex gap-3 overflow-hidden">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Block
+            key={index}
+            className="h-[13.25rem] w-[min(11.5rem,52vw)] shrink-0 rounded-card"
+          />
         ))}
       </div>
     </div>
@@ -50,12 +62,12 @@ export function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="flex flex-col items-start gap-4 px-5 py-10">
+    <div className="page-gutter flex flex-col items-start gap-4 py-10">
       <p className="text-base">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="type-label rounded-pill border border-hairline px-5 py-2 text-xs"
+        className="type-label rounded-pill border border-border px-5 py-2 text-xs"
       >
         Try again
       </button>

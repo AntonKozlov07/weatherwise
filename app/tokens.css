@@ -1,0 +1,149 @@
+/**
+ * Design tokens. The single source for colour, space, radius, type, elevation
+ * and motion. Components consume these and never hardcode a hex or a pixel.
+ *
+ * Two layers on purpose:
+ *
+ *   1. Primitives (--ink-*, --paper-*) are the raw ramp. Never used directly by
+ *      a component.
+ *   2. Semantic tokens (--bg, --surface, --text) name a role. Components use
+ *      only these, so a palette change is one edit here.
+ *
+ * The accent is deliberately neutral. Colour on this screen comes from the
+ * condition theming, which overrides --accent at runtime (Decisions Log 54).
+ * A static brand accent would fight it.
+ */
+
+:root {
+  /* ---- Primitives: graphite and ink -------------------------------------
+     Desaturated blue-grey, never pure black. Pure black on OLED crushes the
+     card separation this design depends on, and reads cheap next to the warm
+     text. Midnight is the only place true black appears, by request. */
+  --ink-900: #0e1114;
+  --ink-800: #131719;
+  --ink-700: #16191d;
+  --ink-600: #1d2126;
+  --ink-500: #242930;
+  --ink-400: #2d333a;
+  --ink-300: #3a424a;
+
+  /* Warm off-white, not #FFF. Pure white against dark graphite reads clinical
+     and buzzes at large sizes; a few points of warmth settles it. */
+  --paper-100: #edeae4;
+  --paper-200: #c9c6c0;
+  /* Lightened from #9c9a95: the contrast check found dimmed text falling to
+     4.48:1 against the snow-at-dawn background, just under AA. This clears it
+     on all 24 condition and time-of-day combinations with margin. */
+  --paper-300: #a6a49f;
+  --paper-400: #6f6e6a;
+
+  /* ---- Semantic colour --------------------------------------------------- */
+  --bg: var(--ink-700);
+  --surface: var(--ink-600);
+  --surface-raised: var(--ink-500);
+  --text: var(--paper-100);
+  --text-dim: var(--paper-300);
+  --text-faint: var(--paper-400);
+
+  /* Borders are translucent, not solid: they sit correctly on any background
+     the condition theming produces, which a fixed grey cannot. */
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.14);
+
+  /* Neutral steel. Overridden per condition by the theming layer. */
+  --accent: #8b95a1;
+  --accent-contrast: var(--ink-900);
+
+  /* ---- Alert colours -----------------------------------------------------
+     The only high-saturation colour permitted anywhere in the app, and only in
+     the alert banner. Each is checked to clear 4.5:1 against --alert-*-bg. */
+  --alert-advisory: #e0a83c;
+  --alert-advisory-bg: rgb(224 168 60 / 0.12);
+  --alert-watch: #e08a3c;
+  --alert-watch-bg: rgb(224 138 60 / 0.13);
+  --alert-warning: #e05c4c;
+  --alert-warning-bg: rgb(224 92 76 / 0.14);
+
+  /* ---- Space: 4px base --------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Page gutter and the vertical rhythm between cards. */
+  --gutter: var(--space-5);
+  --stack: var(--space-4);
+
+  /* ---- Radius ------------------------------------------------------------ */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 999px;
+
+  /* ---- Type scale -------------------------------------------------------- */
+  --text-2xs: 0.625rem;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  /* Display sizes scale with the viewport so they hold their proportion from
+     an SE to a Pro Max. */
+  --text-greeting: clamp(1.6rem, 8vw, 2.25rem);
+  --text-temp: clamp(4rem, 20vw, 5.75rem);
+  --text-temp-sm: clamp(2.1rem, 11vw, 2.75rem);
+
+  /* Weights. The scale runs light; see the type roles in globals.css. */
+  --weight-thin: 100;
+  --weight-light: 200;
+  --weight-label: 300;
+  --weight-body: 400;
+
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.06em;
+  --tracking-wordmark: 0.3em;
+
+  /* ---- Elevation ---------------------------------------------------------
+     A hairline highlight plus a shadow wide enough to read as depth rather
+     than as a shadow. Never a hard drop shadow. */
+  --elevation-card:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 18px 40px -28px rgb(0 0 0 / 0.9);
+  --elevation-raised:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+    0 14px 30px -26px rgb(0 0 0 / 0.85);
+  --elevation-floating:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.08),
+    0 18px 40px -22px rgb(0 0 0 / 0.95);
+
+  /* ---- Motion ------------------------------------------------------------ */
+  --dur-press: 140ms;
+  --dur-fast: 180ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  /* Condition theme crossfade. Long enough to register as intentional when
+     switching saved locations, short enough not to feel sluggish. */
+  --dur-theme: 600ms;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/**
+ * Midnight. True black for OLED, by request (Decisions Log 2). Only the page
+ * and card surfaces shift; text, borders and accent are untouched.
+ */
+[data-theme="midnight"] {
+  --bg: #000000;
+  --surface: #0d1013;
+  --surface-raised: #14181c;
+  --border: rgb(255 255 255 / 0.09);
+  --border-strong: rgb(255 255 255 / 0.16);
+}

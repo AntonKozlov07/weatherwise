@@ -1,50 +1,86 @@
 @import "tailwindcss";
-
-/* ---------------------------------------------------------------------------
-   Design tokens. Dark is the default theme, Midnight is the OLED variant.
-   Only the page background and card surfaces shift between themes. Accent and
-   type stay identical (Decisions Log 2).
---------------------------------------------------------------------------- */
+/* Every colour, space, radius, type size, shadow and duration lives here. */
+@import "./tokens.css";
 
 :root {
   color-scheme: dark;
 
-  /* Surfaces are lifted and de-blued against the original token list to match
-     the Figma render, which sits on neutral greys rather than the near-black
-     blues those values produce (Decisions Log 35). */
-  --bg: #1e2024;
-  --surface: #2b2d31;
-  --surface-raised: #313338;
-  --hairline: #3a3d43;
-  --text: #f2f4f7;
-  --text-dim: #9ba1a9;
-  --accent: #7c5cff;
-
   /* Font size setting. Small 15 / Medium 16 / Large 18. */
   --app-font-size: 16px;
+
+  /*
+   * The condition wash, set at runtime by ConditionThemeProvider. Empty until
+   * weather loads, so the app opens on the neutral token palette rather than
+   * flashing a sky it has not fetched yet.
+   */
+  --condition-wash: none;
+
+  /*
+   * Themes crossfade rather than cut, so switching saved locations reads as
+   * intentional. Only the themed properties transition; nothing else on :root
+   * is animated. Killed under reduced motion at the bottom of this file, where
+   * the colours still change but arrive instantly.
+   */
+  transition:
+    --bg var(--dur-theme) var(--ease-in-out),
+    --accent var(--dur-theme) var(--ease-in-out);
 }
 
-[data-theme="midnight"] {
-  --bg: #000000;
-  --surface: #15171a;
-  --surface-raised: #1d1f23;
-  --hairline: #26292e;
+/*
+ * Custom properties only animate if registered, so the crossfade above needs
+ * these. Without @property the browser treats them as strings and swaps hard.
+ */
+@property --bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #16191d;
+}
+
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8b95a1;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
-  --color-hairline: var(--hairline);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
   --color-accent: var(--accent);
+
+  --color-alert-advisory: var(--alert-advisory);
+  --color-alert-watch: var(--alert-watch);
+  --color-alert-warning: var(--alert-warning);
 
   --font-sans: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 20px;
-  --radius-inner: 12px;
-  --radius-pill: 999px;
+  /* Type scale as utilities, so no component needs an arbitrary size. */
+  --text-2xs: var(--text-2xs);
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md: var(--text-md);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+
+  --radius-card: var(--radius-lg);
+  --radius-inner: var(--radius-md);
+  --radius-pill: var(--radius-pill);
+
+  --spacing-gutter: var(--gutter);
+  --spacing-stack: var(--stack);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
 }
 
 @layer base {
@@ -62,28 +98,18 @@
 
   body {
     background-color: var(--bg);
-    /* Two very wide, very low-contrast washes. They keep a full screen of flat
-       dark from reading as an empty div, and are cheap because they are painted
-       once on a fixed layer rather than per card. */
-    background-image:
-      radial-gradient(
-        130% 70% at 50% -15%,
-        color-mix(in oklab, var(--accent) 12%, transparent),
-        transparent 62%
-      ),
-      radial-gradient(
-        90% 55% at 105% 0%,
-        color-mix(in oklab, var(--text) 5%, transparent),
-        transparent 58%
-      );
+    /* The condition wash, supplied by the theming layer. Painted on a fixed
+       layer so it neither repeats nor scrolls, and `none` until weather loads. */
+    background-image: var(--condition-wash);
     background-attachment: fixed;
     color: var(--text);
     font-family: var(--font-albert-sans), ui-sans-serif, system-ui, sans-serif;
     /* ExtraLight is the base weight, not Regular (Decisions Log 28). */
-    font-weight: 200;
+    font-weight: var(--weight-light);
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none;
     user-select: none;
+    transition: background-color var(--dur-theme) var(--ease-in-out);
   }
 
   /* App chrome is not selectable. Content is. */
@@ -94,9 +120,12 @@
     user-select: text;
   }
 
+  /* Every interactive element gets a visible keyboard ring, on the accent so it
+     stays legible against whatever background the condition theme produces. */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 }
 
@@ -108,33 +137,40 @@
      200 lose their stems on a phone screen and stop being readable. */
 
   .type-wordmark {
-    font-weight: 200;
+    font-weight: var(--weight-light);
     text-transform: uppercase;
-    letter-spacing: 0.3em;
+    letter-spacing: var(--tracking-wordmark);
   }
 
+  /* Large figures: light, tightly tracked, and tabular so a 1 occupies the same
+     width as an 8. Without tabular numerals the temperature nudges the layout
+     sideways every time it ticks. */
   .type-temp {
-    font-weight: 100;
+    font-weight: var(--weight-thin);
     line-height: 0.9;
+    letter-spacing: var(--tracking-tight);
+    font-variant-numeric: tabular-nums lining-nums;
   }
 
   .type-heading {
-    font-weight: 200;
+    font-weight: var(--weight-light);
   }
 
   .type-body {
-    font-weight: 200;
+    font-weight: var(--weight-light);
   }
 
+  /* Small, medium weight, slightly wide. */
   .type-label {
-    font-weight: 300;
+    font-weight: var(--weight-label);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--tracking-wide);
     color: var(--text-dim);
   }
 
   .type-numeric {
-    font-weight: 100;
+    font-weight: var(--weight-thin);
+    font-variant-numeric: tabular-nums lining-nums;
   }
 
   /* Degree symbol rides at 45% of the numeral size, raised toward the cap
@@ -235,49 +271,71 @@
   }
 
   /* ---- Surfaces ----
-     Cards are lit from above with a one-stop gradient and a hairline top
-     highlight, then seated with a wide, very soft shadow. The original spec
-     banned shadows outright; this is the "floating" read Anton asked for, done
-     with a shadow too diffuse to see as one (Decisions Log 36). */
+     One card treatment for the whole app: a translucent 1px border, a hairline
+     top highlight, and a shadow diffuse enough to read as depth rather than as
+     a shadow. Every screen uses these three classes and nothing else, so
+     padding and radius cannot drift between screens (Decisions Log 58). */
 
   .card {
-    background-image: linear-gradient(
-      175deg,
-      color-mix(in oklab, var(--surface) 90%, var(--text)) 0%,
-      var(--surface) 58%
-    );
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--text) 9%, transparent),
-      0 20px 44px -28px rgb(0 0 0 / 0.9);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-card);
   }
 
   .card-raised {
-    background-image: linear-gradient(
-      175deg,
-      color-mix(in oklab, var(--surface-raised) 90%, var(--text)) 0%,
-      var(--surface-raised) 58%
-    );
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--text) 8%, transparent),
-      0 16px 34px -26px rgb(0 0 0 / 0.85);
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-raised);
   }
 
   /* The nav floats over the page rather than sitting in it. */
   .card-floating {
     background-color: color-mix(in oklab, var(--surface) 82%, transparent);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--text) 10%, transparent),
-      0 18px 40px -22px rgb(0 0 0 / 0.95);
+    box-shadow: var(--elevation-floating);
   }
 
   /* The pinned rail card. Everything else in the rail scrolls beneath it, so it
      needs an opaque edge and a shadow that reads as depth at the seam. */
   .card-pinned {
     box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--text) 10%, transparent),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.06),
       8px 0 20px -8px rgb(0 0 0 / 0.75);
+  }
+
+  /* ---- Alerts ----
+     The only high-saturation colour in the app. `--alert` is set per severity
+     by the banner, so one rule covers all three levels. */
+  .alert-surface {
+    background-color: var(--alert-bg);
+    border: 1px solid color-mix(in oklab, var(--alert) 34%, transparent);
+    border-radius: var(--radius-lg);
+  }
+
+  /* ---- Screen chrome ----
+     Header, page gutter and section rhythm, shared by every screen so padding
+     cannot drift between them. */
+  .screen-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: var(--space-2) var(--gutter) var(--space-3);
+  }
+
+  .screen-title {
+    font-weight: var(--weight-light);
+    font-size: var(--text-lg);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .page-gutter {
+    padding-inline: var(--gutter);
   }
 }
 
@@ -388,19 +446,35 @@
     animation: ww-spin 900ms linear infinite;
   }
 
-  /* Presses feel physical without a hover state to lean on. */
+  /* Presses feel physical without a hover state to lean on. Scale plus a
+     touch of opacity, so it still reads on a control with no background. */
   .ww-press {
     transition:
-      transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
-      background-color 160ms ease-out,
-      color 160ms ease-out;
+      transform var(--dur-press) var(--ease-out),
+      opacity var(--dur-press) var(--ease-out),
+      background-color var(--dur-fast) ease-out,
+      color var(--dur-fast) ease-out;
   }
 
   .ww-press:active {
     transform: scale(0.96);
+    opacity: 0.82;
   }
 
-  /* Blurred, so the edges read as vapour instead of as three hard ellipses. */
+  /* Expanding and collapsing sections, used by the alert banner. */
+  .ww-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-base) var(--ease-out);
+  }
+
+  .ww-expand[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+
+  .ww-expand > * {
+    overflow: hidden;
+  }
 
   /* Nudges rather than bounces: enough to read as "there is more this way",
      not enough to pull the eye off the content it is pointing at. */
@@ -429,6 +503,13 @@
   }
 }
 
+/**
+ * Reduced motion.
+ *
+ * Everything stops moving, including the condition theme crossfade. The colours
+ * still change, they just arrive instantly rather than over 600ms, which is the
+ * distinction the setting actually asks for: no motion, not less information.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -437,5 +518,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  :root,
+  body {
+    transition: none !important;
   }
 }

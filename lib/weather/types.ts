@@ -136,8 +136,27 @@ export type AirQuality = {
   carbonMonoxide: number;
 };
 
+/** One minute of the precipitation nowcast. */
+export type MinutelyPoint = {
+  time: number;
+  /** mm/h */
+  precipitation: number;
+};
+
+/**
+ * The next hour of precipitation, already reduced to what the card renders.
+ * Null whenever One Call has no minutely data for the region.
+ */
+export type Nowcast = {
+  headline: string;
+  points: MinutelyPoint[];
+  /** mm/h, for scaling the chart. */
+  peak: number;
+  hasPrecipitation: boolean;
+};
+
 export type WeatherAlert = {
-  /** Stable enough to key a dismissal against. */
+  /** OWM's own alert id. Dismissals and push dedup are both keyed on it. */
   id: string;
   event: string;
   /** OWM has no separate headline, so this is the issuing office. */
@@ -163,6 +182,8 @@ export type ForecastBundle = {
   astronomy: Astronomy;
   airQuality: AirQuality | null;
   alerts: WeatherAlert[];
+  /** Null where One Call publishes no minutely data for the region. */
+  nowcast: Nowcast | null;
   /** When this response was assembled, for "updated Nm ago". */
   fetchedAt: number;
 };

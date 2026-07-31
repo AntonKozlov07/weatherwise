@@ -91,8 +91,8 @@ export function Explore() {
 
   return (
     <div className="screen relative">
-      <header className="px-5 pt-6">
-        <h1 className="type-heading text-2xl">Explore</h1>
+      <header className="page-gutter pt-2">
+        <h1 className="screen-title">Explore</h1>
       </header>
 
       <div
@@ -100,7 +100,7 @@ export function Explore() {
         aria-label="News categories"
         className="mt-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="flex gap-2 px-5">
+        <div className="page-gutter flex gap-2">
           {NEWS_CATEGORIES.map((candidate) => {
             const selected = candidate === category;
 
@@ -130,7 +130,7 @@ export function Explore() {
         label="Scroll for more"
       />
 
-      <div ref={listRef} className="screen-scroll relative px-5 py-5">
+      <div ref={listRef} className="screen-scroll page-gutter relative py-5">
         {state.status === "loading" && (
           <ul className="flex flex-col gap-3">
             {Array.from({ length: 5 }, (_, index) => (
@@ -167,7 +167,7 @@ export function Explore() {
                   className="ww-press flex gap-3 rounded-card bg-surface p-4"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[0.9375rem] leading-snug">
+                    <span className="block text-base leading-snug">
                       {article.title}
                     </span>
                     <span className="mt-2 block truncate text-sm text-text-dim">

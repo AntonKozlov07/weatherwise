@@ -70,7 +70,7 @@ export function LocationSearch({ onSelect, existingIds = [] }: Props) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Guelph"
-          className="selectable rounded-inner border border-hairline bg-surface px-4 py-3 text-base outline-none focus:border-accent"
+          className="selectable rounded-inner border border-border bg-surface px-4 py-3 text-base outline-none focus:border-accent"
         />
       </label>
 
@@ -112,7 +112,7 @@ export function LocationSearch({ onSelect, existingIds = [] }: Props) {
                     {[match.region, match.country].filter(Boolean).join(", ")}
                   </span>
                 </span>
-                <span className="type-label shrink-0 text-[0.625rem]">
+                <span className="type-label shrink-0 text-2xs">
                   {saved ? "Saved" : "Add"}
                 </span>
               </button>
