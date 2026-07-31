@@ -472,14 +472,22 @@ service worker keeps serving cached assets, and that already caused one round of
     diagnosable from a photograph of a real device: every measurement here
     reports a zero inset, which is exactly the case where the bug disappears.
 
-78. **Haptics are an enhancement that is allowed to fail.** Safari has never
-    shipped the Vibration API, so `navigator.vibrate` does nothing on the one
-    device this app is built for. The only feedback available on iOS today is a
-    side effect of toggling an `<input type="checkbox" switch>`, which is not an
-    API and could be removed without notice. It is treated accordingly: nothing
-    checks whether it worked, nothing changes if it did not, and every call site
-    is an event handler, because haptics fired outside a user gesture are
-    ignored on every platform.
+78. **Haptics are not possible here. Built, tested on the device, removed.**
+    Safari has never shipped the Vibration API, so `navigator.vibrate` does
+    nothing on iOS. The documented workaround is a side effect of toggling an
+    `<input type="checkbox" switch>`, and it was implemented and shipped. It
+    produced nothing on the device.
+
+    The reason is worth recording so this is not attempted a third time: that
+    haptic fires from a genuine tap on the switch itself. Driving it with a
+    programmatic `.click()` from another element's handler is not user
+    interaction as far as iOS is concerned. Making it fire would mean an
+    invisible switch physically overlaying every button in the app, intercepting
+    the taps meant for the real controls underneath, which is a worse app in
+    exchange for a tick.
+
+    Do not add a haptics setting that silently does nothing. If this app ever
+    targets Android, `navigator.vibrate` works there and is a ten-line addition.
 
 79. **The UV line states strength and timing, never advice.** It says when the
     sun is strongest and how strong. What to do about that is the reader's
@@ -516,7 +524,6 @@ Outstanding:
 - **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
 - **Nothing in the redesign has been seen rendered.** The timeline, scrubber and expanded hero are verified through the DOM only: geometry, overflow, dismissal, focus and the absence of clipping at 375x667 and 393x852 with simulated insets, at both text sizes. The browser available here does not composite, so no screenshot exists and no animation has been watched. Motion, the glint, and the FLIP in flight all need a real screen.
 - **The gradient palette was rebuilt around a contrast floor.** 37 of 72 stops failed WCAG AA against the text on them, the worst at 1.17:1, which is what "the gradient makes the text invisible" was. Stops are now darkened programmatically until both weights of on-band text clear 4.5:1, and the test asserts it for all 24 combinations, so a future palette edit cannot quietly reintroduce it. The band is darker and more saturated than before as a direct result.
-- **Haptics are unverified.** The iOS path depends on an undocumented side effect and cannot be tested from here at all. If nothing is felt on the device, that path is dead and the honest fix is to remove it rather than leave a setting that does nothing.
 - **Threshold rules have never fired against a real forecast.** The engine and the transition logic are covered by tests, but the cron path that evaluates them runs only on Vercel with `DATABASE_URL` and `CRON_SECRET` set.
 
 ---

@@ -1,7 +1,6 @@
 "use client";
 
 import { updatePreferences } from "@/components/preferences-provider";
-import { haptic } from "@/lib/haptics";
 import { updatePushLocation } from "@/lib/push/client";
 import type { SavedLocation } from "@/lib/preferences";
 
@@ -45,7 +44,6 @@ export function LocationSwitch({
               onClick={() => {
                 if (selected) return;
 
-                haptic("select");
                 updatePreferences({ activeLocationId: location.id });
 
                 // Silent by design: a failure means alerts keep arriving for

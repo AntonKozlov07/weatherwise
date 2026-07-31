@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import { formatTemperature, type Units } from "@/lib/format";
-import { haptic } from "@/lib/haptics";
 import type { CurrentConditions } from "@/lib/weather/types";
 
 /**
@@ -49,8 +48,6 @@ export function ShareButton({ current, locationName, units, line, index }: Props
   ].join(" ");
 
   const share = async () => {
-    haptic("impact");
-
     try {
       if (canShare()) {
         await navigator.share({ title: "WeatherWise", text });

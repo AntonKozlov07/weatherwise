@@ -19,7 +19,6 @@ import {
   type Units,
 } from "@/lib/format";
 import { gradientMotion } from "@/lib/gradient-motion";
-import { haptic } from "@/lib/haptics";
 import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
 import { useCountUp } from "@/lib/hooks/use-count-up";
 import type { Tilt } from "@/lib/hooks/use-tilt";
@@ -111,15 +110,12 @@ export function Hero({
 
   const close = useCallback(() => {
     setPhase((previous) => {
-      if (previous === "closed") return previous;
-      haptic("impact");
-      return "closing";
+      return previous === "closed" ? previous : "closing";
     });
   }, []);
 
   const open = () => {
     if (phase !== "closed") return;
-    haptic("impact");
     openerRef.current = document.activeElement as HTMLElement | null;
     // Reset here rather than on close: while closed the panel is unmounted, so
     // the only moment the value matters is the one before it appears again.

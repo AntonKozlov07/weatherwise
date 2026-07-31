@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { haptic } from "@/lib/haptics";
 
 /** Drag distance that triggers a refresh. */
 const THRESHOLD = 72;
@@ -86,9 +85,6 @@ export function PullToRefresh({ onRefresh, scrollerRef, children }: Props) {
         return;
       }
 
-      // At the moment the gesture commits, not when the data lands: the tick
-      // is confirming the pull was enough, which is what the finger is asking.
-      haptic("success");
       setRefreshing(true);
       setPull(THRESHOLD);
 

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { formatDayName, formatHour } from "@/lib/format";
-import { haptic } from "@/lib/haptics";
 
 /**
  * The time scrubber.
@@ -73,18 +72,6 @@ export function TimeScrubber({
     return () => window.clearTimeout(timer);
   }, [dragging, index, nowIndex]);
 
-  /**
-   * One tick per hour crossed, not per pointer event. A move fires many times a
-   * second and buzzing on each of them is not feedback, it is a rattle.
-   */
-  const moveTo = useCallback(
-    (next: number) => {
-      if (next !== index) haptic("select");
-      onChange(next);
-    },
-    [index, onChange],
-  );
-
   const indexFromClientX = useCallback(
     (clientX: number) => {
       const track = trackRef.current;
@@ -101,12 +88,12 @@ export function TimeScrubber({
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
-    moveTo(indexFromClientX(event.clientX));
+    onChange(indexFromClientX(event.clientX));
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    moveTo(indexFromClientX(event.clientX));
+    onChange(indexFromClientX(event.clientX));
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -131,7 +118,6 @@ export function TimeScrubber({
     if (step === 0) return;
 
     event.preventDefault();
-    haptic("select");
     onChange((previous) => Math.max(0, Math.min(count - 1, previous + step)));
   };
 
@@ -190,10 +176,7 @@ export function TimeScrubber({
         {!atNow && (
           <button
             type="button"
-            onClick={() => {
-              haptic("select");
-              onChange(nowIndex);
-            }}
+            onClick={() => onChange(nowIndex)}
             className="text-text-faint"
           >
             Back to now
