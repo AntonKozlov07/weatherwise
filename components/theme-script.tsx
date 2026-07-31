@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { FONT_SIZES, STORAGE_KEY } from "@/lib/preferences";
 
 /**
@@ -10,7 +12,12 @@ import { FONT_SIZES, STORAGE_KEY } from "@/lib/preferences";
  * Kept deliberately small and defensive: it runs before anything else, so a
  * throw here would take the whole page with it.
  */
-export function ThemeScript() {
+export async function ThemeScript() {
+  // Set per request by middleware.ts. Absent only if this ever renders outside
+  // the middleware's matcher, in which case the script is simply omitted rather
+  // than emitted and blocked.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   // The font size goes in a stylesheet rather than an inline style on <html>.
   // Setting the style attribute makes the pre-hydration DOM differ from the
   // server HTML, which React reports as a hydration mismatch on every load.
@@ -32,5 +39,8 @@ export function ThemeScript() {
 })();
 `.trim();
 
-  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+  // Without the nonce this is blocked by the policy in middleware.ts, and the
+  // stored theme and font size are not applied until React hydrates, which is
+  // exactly the flash of the wrong appearance this script exists to prevent.
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: script }} />;
 }

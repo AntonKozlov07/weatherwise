@@ -21,6 +21,7 @@ import { formatUpdatedAgo } from "@/lib/format";
 import { useForecast } from "@/lib/hooks/use-forecast";
 import { useGreetingGradient } from "@/lib/hooks/use-greeting-gradient";
 import { useTilt } from "@/lib/hooks/use-tilt";
+import { useVoiceLine } from "@/lib/hooks/use-voice-line";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { buildTimeline } from "@/lib/timeline/timeline";
 import { activeLocation, type SavedLocation } from "@/lib/preferences";
@@ -56,6 +57,10 @@ function LoadedHome({
   // card read the same tilt and lean together. Two hooks would mean two
   // smoothing loops a frame apart.
   const tilt = useTilt(motionEffects);
+
+  // Owned here rather than in the hero, so there is one line per screen and the
+  // request is not repeated by every component that wants to show it.
+  const line = useVoiceLine(bundle.current, bundle.hourly, bundle.location);
 
   const rows = useMemo(
     () =>
@@ -179,6 +184,7 @@ function LoadedHome({
           airQuality={bundle.airQuality}
           windGust={bundle.current.wind.gust ?? bundle.current.wind.speed}
           astronomy={bundle.astronomy}
+          line={line}
         />
       </div>
 

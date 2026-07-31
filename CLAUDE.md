@@ -515,6 +515,49 @@ service worker keeps serving cached assets, and that already caused one round of
     dismissed by tapping the card again, tapping outside, swiping down, or
     Escape, which is three more ways than a single X offered.
 
+84. **The written line is generated, with the rules engine as the floor.** A
+    model writes it where it can; the deterministic sentence ships whenever
+    generation fails, times out, or produces something that does not survive
+    validation. The rules engine is not a degraded mode: it runs offline, it
+    cannot invent weather, and it is what makes generated copy safe to show at
+    all. Nothing in the interface names or hints at how the line was produced,
+    by request. Cached by a digest that collapses a degree of drift, so a
+    location generates one line per meaningful change rather than one per poll.
+
+85. **Every number in a generated line must be one the model was given.** Not
+    similar to one, not within a degree: present in the digest, or the line is
+    rejected and the deterministic one is used. A model stating "rain around
+    4pm" when no rain is coming reads exactly as well as a true line, which is
+    what makes this the one check that cannot be skipped. Clock hours derived
+    from the offsets are permitted, since turning "in 4 hours" into "around 4pm"
+    is the model doing its job.
+
+86. **CSP needs a per-request nonce, and a policy that looks right can still be
+    fatal.** `script-src 'self'` was written, reviewed and shipped into a build
+    before being tested. It broke the entire app: Next streams hydration as
+    inline script tags, so React never hydrated and the page rendered its markup
+    and then did nothing. It was caught only by loading a production build and
+    checking for hydration, never by reading the policy. The nonce is set in
+    middleware, applied by Next to its own scripts and by hand to the theme
+    bootstrap, with `strict-dynamic` covering the chunks those load.
+
+    The cost is that every route is now rendered per request. Acceptable here:
+    content is client-fetched anyway and the service worker is what makes the
+    shell fast.
+
+    CARTO is named in `connect-src` because MapLibre fetches raster tiles rather
+    than loading them as images. Without it the map is a blank grid.
+
+87. **The privacy policy describes this app, not a template.** Boilerplate
+    claiming data collection that does not happen would be inaccurate about the
+    one subject where accuracy is the whole point. Everything it states is true
+    of the code: no analytics, no accounts, preferences on the device only, and
+    one server-side record which exists solely if push is enabled.
+
+88. **The Guide screen is removed.** It explained an interface that no longer
+    needs explaining, and the legal notices that replaced it in the menu are
+    reference material people occasionally need rather than a tour nobody reads.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
@@ -524,6 +567,7 @@ Outstanding:
 - **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
 - **Nothing in the redesign has been seen rendered.** The timeline, scrubber and expanded hero are verified through the DOM only: geometry, overflow, dismissal, focus and the absence of clipping at 375x667 and 393x852 with simulated insets, at both text sizes. The browser available here does not composite, so no screenshot exists and no animation has been watched. Motion, the glint, and the FLIP in flight all need a real screen.
 - **The gradient palette was rebuilt around a contrast floor.** 37 of 72 stops failed WCAG AA against the text on them, the worst at 1.17:1, which is what "the gradient makes the text invisible" was. Stops are now darkened programmatically until both weights of on-band text clear 4.5:1, and the test asserts it for all 24 combinations, so a future palette edit cannot quietly reintroduce it. The band is darker and more saturated than before as a direct result.
+- **Generated lines have never been seen.** `ANTHROPIC_API_KEY` is not set anywhere yet, so every line rendered so far is the deterministic one, which is exactly what should happen without a key. The validator has no coverage against real model output.
 - **Threshold rules have never fired against a real forecast.** The engine and the transition logic are covered by tests, but the cron path that evaluates them runs only on Vercel with `DATABASE_URL` and `CRON_SECRET` set.
 
 ---

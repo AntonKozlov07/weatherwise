@@ -22,7 +22,6 @@ import { gradientMotion } from "@/lib/gradient-motion";
 import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
 import { useCountUp } from "@/lib/hooks/use-count-up";
 import type { Tilt } from "@/lib/hooks/use-tilt";
-import { voiceLine } from "@/lib/voice/voice";
 import type {
   AirQuality,
   Astronomy,
@@ -83,6 +82,8 @@ type Props = {
   airQuality: AirQuality | null;
   windGust: number;
   astronomy: Astronomy;
+  /** Supplied by the screen, which owns where the wording comes from. */
+  line: string;
 };
 
 export function Hero({
@@ -97,6 +98,7 @@ export function Hero({
   airQuality,
   windGust,
   astronomy,
+  line,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("closed");
   const [drag, setDrag] = useState(0);
@@ -218,7 +220,6 @@ export function Hero({
     };
   }, [expanded, close]);
 
-  const line = voiceLine({ current, hourly, timeZone });
   const answers = topAnswers(current, hourly, timeZone);
 
   // The location is already named directly above this, so repeating it here

@@ -84,19 +84,12 @@ export function AppHeader({ locationName }: { locationName?: string }) {
 
           <nav
             aria-label="Main menu"
-            className="relative flex w-72 max-w-[80%] flex-col gap-1 bg-surface p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]"
+            className="relative flex h-full w-72 max-w-[80%] flex-col gap-1 overflow-y-auto bg-surface p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
           >
             <p className="type-heading mb-4 text-lg">
               {locationName ?? "WeatherWise"}
             </p>
 
-            <Link
-              href="/guide"
-              onClick={() => setOpen(false)}
-              className="rounded-inner px-3 py-3 text-base hover:bg-surface-raised"
-            >
-              Guide
-            </Link>
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
@@ -104,6 +97,33 @@ export function AppHeader({ locationName }: { locationName?: string }) {
             >
               Settings
             </Link>
+            {/*
+              Small print, pushed to the foot of the drawer. It belongs in the
+              menu rather than buried in Settings, which is where people look
+              for it, and it sits apart from the navigation above because it is
+              reference material rather than somewhere you go.
+            */}
+            <div className="mt-auto flex flex-col gap-1 border-t border-border pt-4">
+              {[
+                { href: "/about#privacy", label: "Privacy" },
+                { href: "/about#terms", label: "Terms" },
+                { href: "/about#sources", label: "Data sources" },
+                { href: "/about#licences", label: "Licences" },
+              ].map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-inner px-3 py-2 text-sm text-text-dim hover:bg-surface-raised"
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              <p className="px-3 pt-2 text-2xs text-text-faint">
+                WeatherWise. Forecasts are estimates.
+              </p>
+            </div>
           </nav>
         </div>
       )}

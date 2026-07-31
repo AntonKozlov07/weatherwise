@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { updatePreferences } from "@/components/preferences-provider";
 import { updatePushLocation } from "@/lib/push/client";
 import type { SavedLocation } from "@/lib/preferences";
@@ -12,8 +14,12 @@ import type { SavedLocation } from "@/lib/preferences";
  * close to unusable (Decisions Log 81).
  *
  * The same underline treatment as the Explore categories, rather than a third
- * idiom for selection. Absent with one location or none, because a control
- * offering a single choice is decoration.
+ * idiom for selection.
+ *
+ * Shown with a single saved location, not just with two. Hiding it until there
+ * were two made it invisible to anyone who had not already added a second, which
+ * is precisely the person who needs to find it. The trailing link is how the
+ * second one gets added (Decisions Log 85).
  *
  * Alerts follow the switch. A push subscription pinned to a city you are no
  * longer looking at would warn you about the wrong weather.
@@ -25,7 +31,9 @@ export function LocationSwitch({
   locations: SavedLocation[];
   activeId: string | null;
 }) {
-  if (locations.length < 2) return null;
+  // Nothing saved at all means onboarding has not run or the default location
+  // is in use, and there is nothing to switch between yet.
+  if (locations.length === 0) return null;
 
   return (
     <nav
@@ -60,6 +68,15 @@ export function LocationSwitch({
             </button>
           );
         })}
+
+        {/* Always present, so adding a second location is reachable from the
+            screen you would think to look on. */}
+        <Link
+          href="/settings"
+          className="ww-tab type-label shrink-0 whitespace-nowrap px-1 pb-2 pt-1 text-2xs"
+        >
+          + Add
+        </Link>
       </div>
     </nav>
   );
