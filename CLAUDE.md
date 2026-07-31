@@ -369,6 +369,61 @@ Also worth confirming he has deleted and re-added the home screen app: an old
 service worker keeps serving cached assets, and that already caused one round of
 "still not fixed" on the wordmark.
 
+### Decisions Log, continued
+
+64. **The condition theme is confined to the hero's gradient bar.** It previously
+    also washed the page background. Two decimal points of tint across a whole
+    screen reads as a palette accident rather than a signal, and it fought the
+    card separation the layout depends on. Backgrounds, surfaces and cards are
+    neutral graphite; the bar and the accent are the only places the sky shows.
+    `themeVariables` therefore sets `--grad-0/1/2` and `--accent`, and no longer
+    touches `--bg`.
+
+65. **Hourly and weekly are one continuous timeline.** The segmented control and
+    the horizontal rail are both deleted. A tab bar makes you choose a mode
+    before it shows you anything, and the interesting part of a forecast is
+    exactly where hour-by-hour stops mattering and days take over. The list runs
+    straight through with no header at the join. Row height is a constant so the
+    spine SVG is laid out from it, which is what makes the curve right on first
+    paint rather than after a measuring pass.
+
+66. **The scrubber returns to now by itself,** 4.5 seconds after the last touch.
+    Left parked at 9pm it turns a live weather app into a stale one showing
+    yesterday's evening, and nobody remembers they moved it. Keyboard steps use
+    a functional state update, because autorepeat delivers several presses in one
+    React batch and reading the prop moved one step for ten presses.
+
+67. **Tilt effects are off by default and opt in from Settings.** iOS only
+    releases device orientation after a permission prompt, and that prompt can
+    only be raised from a user gesture and can never be raised twice. The toggle
+    is the gesture. Without permission the glint still drifts on a slow
+    Lissajous path: most users will never grant motion access, and a highlight
+    that sits dead still looks like a gradient someone forgot to finish.
+
+68. **The hero expands in place rather than navigating.** It is the same object
+    showing more of itself, not a different screen, and a push transition brings
+    a back gesture that is the wrong shape for something you dismiss. Implemented
+    as a FLIP so only transform and opacity move. Two things this cost: the
+    release needs a timer as well as `requestAnimationFrame`, because a
+    backgrounded page never runs frames and the panel froze at the collapsed
+    size with no way out; and the overlay must be portalled to the body, because
+    `fixed` resolves against the nearest ancestor with a transform and the
+    entrance animation has one, which sized the backdrop to the hero instead of
+    the screen.
+
+69. **Threshold rules fire on the transition, never the state.** A rule for
+    "below zero" that notified every poll for as long as it stayed cold is the
+    fastest possible route to push being switched off. Previous truth per rule
+    is stored per subscription and merged, not replaced, so re-enabling a rule
+    does not fire it for a condition that never changed. They are also kept
+    visibly apart from severe weather alerts in both the UI and the payload: a
+    rule about laundry weather dressed as a government warning makes the real
+    warning easier to ignore.
+
+70. **Feature 7, weekly context, was deferred by the user** and is deliberately
+    absent. It would also have needed history One Call 4.0's timeline endpoints
+    do not carry.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
@@ -376,12 +431,14 @@ Outstanding:
 - **Alerts have never been seen with real data.** The verification ran during clear weather with zero alerts in effect, so `fetchAlerts` and the banner are still only covered by tests.
 - **Safe-area behaviour is unconfirmed.** Desktop reports zero insets, so the double-inset fix below the nav can only be judged on a real device.
 - **Pull to refresh** has been exercised with synthetic touch events only. It needs a real finger on iOS Safari, standalone.
+- **Nothing in the redesign has been seen rendered.** The timeline, scrubber and expanded hero are verified through the DOM only: geometry, overflow, dismissal, focus and the absence of clipping at 375x667 and 393x852 with simulated insets, at both text sizes. The browser available here does not composite, so no screenshot exists and no animation has been watched. Motion, the glint, and the FLIP in flight all need a real screen.
+- **Threshold rules have never fired against a real forecast.** The engine and the transition logic are covered by tests, but the cron path that evaluates them runs only on Vercel with `DATABASE_URL` and `CRON_SECRET` set.
 
 ---
 
 ## Never
 
-- Add authentication or a database
+- Add authentication
 - Call a vendor API from a client component
 - Put a key in `NEXT_PUBLIC_*`
 - Use WeatherAPI's own weather icons

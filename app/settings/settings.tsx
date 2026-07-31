@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AlertRules } from "@/components/alert-rules";
 import { BottomNav } from "@/components/bottom-nav";
 import { LocationSearch } from "@/components/location-search";
 import { PushSettings } from "@/components/push-settings";
@@ -134,6 +135,10 @@ export function Settings() {
           />
 
           <PushSettings preferences={preferences} />
+
+          {/* Personal thresholds, below the severe weather controls and worded
+              as preferences rather than warnings. */}
+          <AlertRules preferences={preferences} />
         </Section>
 
         <Section title="Saved locations">

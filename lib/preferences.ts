@@ -1,4 +1,5 @@
 import type { Units } from "./format";
+import { parseRules, type ThresholdRule } from "@/lib/push/rules";
 
 export type { Units };
 
@@ -33,6 +34,12 @@ export type Preferences = {
    * in and where the prompt fires (Decisions Log 67).
    */
   motionEffects: boolean;
+  /**
+   * Personal threshold rules for push. Kept apart from `alertBanners`, which is
+   * about official warnings: one is an authority telling everyone the same
+   * thing, the other is this user's own line in the sand (Decisions Log 69).
+   */
+  alertRules: ThresholdRule[];
   locations: SavedLocation[];
   activeLocationId: string | null;
   onboarded: boolean;
@@ -54,6 +61,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   fontSize: "medium",
   alertBanners: true,
   motionEffects: false,
+  alertRules: [],
   locations: [],
   activeLocationId: null,
   onboarded: false,
@@ -144,6 +152,9 @@ export function parsePreferences(raw: string | null): Preferences {
       typeof stored.motionEffects === "boolean"
         ? stored.motionEffects
         : DEFAULT_PREFERENCES.motionEffects,
+    // The same guard the server uses, so a hand-edited localStorage cannot put
+    // a malformed rule into the UI or onto the wire.
+    alertRules: parseRules(stored.alertRules),
     locations,
     activeLocationId,
     onboarded:

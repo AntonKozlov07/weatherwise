@@ -1,8 +1,10 @@
+import { parseRules } from "@/lib/push/rules";
 import {
   deleteSubscription,
   ensureSchema,
   saveSubscription,
   updateSubscriptionLocation,
+  updateSubscriptionRules,
 } from "@/lib/push/subscriptions";
 
 /**
@@ -24,6 +26,8 @@ type Body = {
   endpoint?: unknown;
   latitude?: unknown;
   longitude?: unknown;
+  /** Threshold rules. Validated by parseRules before they reach the database. */
+  rules?: unknown;
 };
 
 function badRequest(message: string): Response {
@@ -60,7 +64,14 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     await ensureSchema();
-    await saveSubscription({ endpoint, p256dh, auth, latitude, longitude });
+    await saveSubscription({
+      endpoint,
+      p256dh,
+      auth,
+      latitude,
+      longitude,
+      rules: parseRules(body.rules),
+    });
 
     return Response.json({ ok: true }, { status: 201 });
   } catch (error) {
@@ -90,6 +101,12 @@ export async function PATCH(request: Request): Promise<Response> {
 
     await ensureSchema();
     await updateSubscriptionLocation(endpoint, latitude, longitude);
+
+    // Rules ride along on the same request when they changed, so editing one
+    // does not need a second round trip or its own endpoint.
+    if (body.rules !== undefined) {
+      await updateSubscriptionRules(endpoint, parseRules(body.rules));
+    }
 
     return Response.json({ ok: true });
   } catch (error) {

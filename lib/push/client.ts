@@ -1,5 +1,10 @@
 "use client";
 
+import { DEFAULT_LOCATION } from "@/lib/location";
+import { activeLocation } from "@/lib/preferences";
+import { readPreferences } from "@/lib/preferences-store";
+import type { ThresholdRule } from "@/lib/push/rules";
+
 /**
  * Browser side of Web Push.
  *
@@ -47,6 +52,19 @@ export function pushSupport(): PushSupport {
   if (isIos() && !isStandalone()) return { state: "needs-install" };
 
   return { state: "ready" };
+}
+
+/**
+ * The coordinates alerts should follow, read at call time rather than passed
+ * in. Everything that mirrors state to the server needs them, and threading
+ * them through every call site would mean four signatures changing together.
+ */
+function activeCoordinates(): { latitude: number; longitude: number } {
+  const saved = activeLocation(readPreferences());
+
+  return saved
+    ? { latitude: saved.latitude, longitude: saved.longitude }
+    : DEFAULT_LOCATION;
 }
 
 export function currentPermission(): PushPermission {
@@ -124,6 +142,9 @@ export async function enablePush(
       subscription: subscription.toJSON(),
       latitude: location.latitude,
       longitude: location.longitude,
+      // Rules can be configured before push is switched on, so they ride along
+      // with the subscription rather than needing a second call afterwards.
+      rules: readPreferences().alertRules,
     }),
   });
 
@@ -167,6 +188,34 @@ export async function updatePushLocation(location: {
       endpoint: subscription.endpoint,
       latitude: location.latitude,
       longitude: location.longitude,
+    }),
+  }).catch(() => undefined);
+}
+
+/**
+ * Mirrors the device's threshold rules to the server.
+ *
+ * Silent where there is no subscription: rules are perfectly valid to configure
+ * before turning push on, and they are sent again with the subscription itself
+ * when it is created, so nothing is lost by the no-op.
+ *
+ * PATCH carries the current location too, because the endpoint requires it and
+ * resending what the server already has is cheaper than a second route.
+ */
+export async function updatePushRules(rules: ThresholdRule[]): Promise<void> {
+  const subscription = await currentSubscription();
+  if (!subscription) return;
+
+  const location = activeCoordinates();
+
+  await fetch("/api/push/subscribe", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      endpoint: subscription.endpoint,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      rules,
     }),
   }).catch(() => undefined);
 }

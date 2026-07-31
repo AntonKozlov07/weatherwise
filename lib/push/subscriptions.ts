@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
+import { parseRules, type ThresholdRule } from "@/lib/push/rules";
+
 /**
  * Push subscription storage.
  *
@@ -21,11 +23,19 @@ export type PushSubscriptionRecord = {
   auth: string;
   latitude: number;
   longitude: number;
+  rules?: ThresholdRule[];
 };
 
 export type StoredSubscription = PushSubscriptionRecord & {
   id: number;
   deliveredAlertIds: string[];
+  /** The device's own threshold rules, evaluated per poll. */
+  rules: ThresholdRule[];
+  /**
+   * Whether each rule held last poll, so a rule fires on the transition into
+   * its condition rather than every twenty minutes for as long as it lasts.
+   */
+  ruleState: Record<string, boolean>;
 };
 
 /**
@@ -65,9 +75,23 @@ export async function ensureSchema(): Promise<void> {
       latitude            NUMERIC(8, 2) NOT NULL,
       longitude           NUMERIC(8, 2) NOT NULL,
       delivered_alert_ids JSONB       NOT NULL DEFAULT '[]'::jsonb,
+      rules               JSONB       NOT NULL DEFAULT '[]'::jsonb,
+      rule_state          JSONB       NOT NULL DEFAULT '{}'::jsonb,
       created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `;
+
+  // Added after the table shipped, so existing rows need them too. IF NOT
+  // EXISTS rather than a migration tool: one table, two columns, no history.
+  await query`
+    ALTER TABLE push_subscriptions
+      ADD COLUMN IF NOT EXISTS rules JSONB NOT NULL DEFAULT '[]'::jsonb
+  `;
+
+  await query`
+    ALTER TABLE push_subscriptions
+      ADD COLUMN IF NOT EXISTS rule_state JSONB NOT NULL DEFAULT '{}'::jsonb
   `;
 
   // The polling job's only query groups by rounded coordinates.
@@ -87,19 +111,22 @@ export async function saveSubscription(
   const query = sql();
 
   await query`
-    INSERT INTO push_subscriptions (endpoint, p256dh, auth, latitude, longitude)
+    INSERT INTO push_subscriptions
+      (endpoint, p256dh, auth, latitude, longitude, rules)
     VALUES (
       ${record.endpoint},
       ${record.p256dh},
       ${record.auth},
       ${roundCoordinate(record.latitude)},
-      ${roundCoordinate(record.longitude)}
+      ${roundCoordinate(record.longitude)},
+      ${JSON.stringify(parseRules(record.rules ?? []))}::jsonb
     )
     ON CONFLICT (endpoint) DO UPDATE SET
       p256dh     = EXCLUDED.p256dh,
       auth       = EXCLUDED.auth,
       latitude   = EXCLUDED.latitude,
       longitude  = EXCLUDED.longitude,
+      rules      = EXCLUDED.rules,
       updated_at = now()
   `;
 }
@@ -138,7 +165,8 @@ export async function subscriptionsByLocation(): Promise<
   const query = sql();
 
   const rows = (await query`
-    SELECT id, endpoint, p256dh, auth, latitude, longitude, delivered_alert_ids
+    SELECT id, endpoint, p256dh, auth, latitude, longitude,
+           delivered_alert_ids, rules, rule_state
       FROM push_subscriptions
   `) as Record<string, unknown>[];
 
@@ -161,6 +189,14 @@ export async function subscriptionsByLocation(): Promise<
       deliveredAlertIds: Array.isArray(delivered)
         ? delivered.filter((id): id is string => typeof id === "string")
         : [],
+      // Re-validated on the way out as well as in. The column is JSONB, so a
+      // row written by an older build, or by hand, is not guaranteed to match
+      // the current shape.
+      rules: parseRules(row.rules),
+      ruleState:
+        typeof row.rule_state === "object" && row.rule_state !== null
+          ? (row.rule_state as Record<string, boolean>)
+          : {},
     };
 
     groups.set(key, [...(groups.get(key) ?? []), subscription]);
@@ -190,6 +226,42 @@ export async function markAlertDelivered(
                   THEN delivered_alert_ids
                   ELSE delivered_alert_ids || ${JSON.stringify([alertId])}::jsonb
              END,
+           updated_at = now()
+     WHERE id = ${id}
+  `;
+}
+
+/** Replaces a device's rules without touching its subscription or location. */
+export async function updateSubscriptionRules(
+  endpoint: string,
+  rules: ThresholdRule[],
+): Promise<void> {
+  const query = sql();
+
+  await query`
+    UPDATE push_subscriptions
+       SET rules = ${JSON.stringify(parseRules(rules))}::jsonb,
+           updated_at = now()
+     WHERE endpoint = ${endpoint}
+  `;
+}
+
+/**
+ * Writes back which rules held this poll.
+ *
+ * Merged into the existing object rather than replacing it, so a rule the user
+ * has since disabled keeps its last known state: re-enabling it should not fire
+ * a notification for a condition that never changed.
+ */
+export async function saveRuleState(
+  id: number,
+  state: Record<string, boolean>,
+): Promise<void> {
+  const query = sql();
+
+  await query`
+    UPDATE push_subscriptions
+       SET rule_state = rule_state || ${JSON.stringify(state)}::jsonb,
            updated_at = now()
      WHERE id = ${id}
   `;
