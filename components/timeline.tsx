@@ -10,6 +10,7 @@ import {
   formatTimeRounded,
   type Units,
 } from "@/lib/format";
+import { haptic } from "@/lib/haptics";
 import { spinePath, type TimelineRow } from "@/lib/timeline/timeline";
 
 /**
@@ -161,7 +162,10 @@ function TimelineRowView({
 
       <button
         type="button"
-        onClick={() => onSelect(index)}
+        onClick={() => {
+          haptic("select");
+          onSelect(index);
+        }}
         className="flex flex-1 items-center gap-3 text-left"
       >
         {row.kind === "sun" ? (

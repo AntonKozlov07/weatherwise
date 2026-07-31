@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { ShareButton } from "@/components/share-button";
 import { Temperature } from "@/components/temperature";
 import { WeatherFX, WindFX } from "@/components/weather-fx";
 import { WeatherIcon } from "@/components/weather-icon";
@@ -18,6 +19,8 @@ import {
   type Units,
 } from "@/lib/format";
 import { gradientMotion } from "@/lib/gradient-motion";
+import { haptic } from "@/lib/haptics";
+import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
 import { useCountUp } from "@/lib/hooks/use-count-up";
 import type { Tilt } from "@/lib/hooks/use-tilt";
 import { voiceLine } from "@/lib/voice/voice";
@@ -70,6 +73,8 @@ type Props = {
   };
   current: CurrentConditions;
   hourly: HourlyPoint[];
+  /** For the share text only; the card itself shows the time, not the place. */
+  locationName: string;
   timeZone: string;
   units: Units;
   /** Lifted to the screen so the greeting and the card lean together. */
@@ -85,6 +90,7 @@ export function Hero({
   view,
   current,
   hourly,
+  locationName,
   timeZone,
   units,
   tilt,
@@ -98,17 +104,22 @@ export function Hero({
 
   const heroRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const panelFocusRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
   const expanded = phase !== "closed";
 
   const close = useCallback(() => {
-    setPhase((previous) => (previous === "closed" ? previous : "closing"));
+    setPhase((previous) => {
+      if (previous === "closed") return previous;
+      haptic("impact");
+      return "closing";
+    });
   }, []);
 
   const open = () => {
     if (phase !== "closed") return;
+    haptic("impact");
     openerRef.current = document.activeElement as HTMLElement | null;
     // Reset here rather than on close: while closed the panel is unmounted, so
     // the only moment the value matters is the one before it appears again.
@@ -183,7 +194,10 @@ export function Hero({
   // Focus moves into the panel on open and back to the hero on close, so the
   // expansion is navigable rather than a trap that swallows the cursor.
   useEffect(() => {
-    if (phase === "open") closeRef.current?.focus();
+    // The panel itself takes focus. There is no close button to focus: it sat
+    // behind the temperature card and was unreachable, and the panel already
+    // has three ways out (the card, the backdrop, a swipe, plus Escape).
+    if (phase === "open") panelFocusRef.current?.focus();
     if (phase === "closed") {
       openerRef.current?.focus();
       openerRef.current = null;
@@ -250,7 +264,11 @@ export function Hero({
           onClick={close}
         >
           <div
-            ref={panelRef}
+            ref={(node) => {
+              panelRef.current = node;
+              panelFocusRef.current = node;
+            }}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Conditions in detail"
@@ -285,24 +303,11 @@ export function Hero({
           >
             <span className="ww-hero-grab" aria-hidden="true" />
 
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="ww-hero-close absolute right-4 top-4"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                <path
-                  d="M1 1l12 12M13 1L1 13"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
 
             <ExpandedContent
+              onDismiss={close}
+              hourly={hourly}
+              locationName={locationName}
               view={view}
               current={current}
               units={units}
@@ -487,9 +492,12 @@ function ExpandedContent({
   line,
   answers,
   active,
+  hourly,
+  locationName,
   airQuality,
   windGust,
   astronomy,
+  onDismiss,
 }: {
   view: Props["view"];
   current: CurrentConditions;
@@ -500,16 +508,24 @@ function ExpandedContent({
   line: string;
   answers: ActivityAnswer[];
   active: boolean;
+  hourly: HourlyPoint[];
+  locationName: string;
   airQuality: AirQuality | null;
   windGust: number;
   astronomy: Astronomy;
+  onDismiss: () => void;
 }) {
   const expandedMotion = gradientMotion(tilt);
+  const golden = nextGoldenHour(astronomy, current.observedAt);
+  const uv = uvPeak(hourly, current.observedAt);
 
   return (
     <div className="ww-hero-body">
-      <div
-        className={`ww-hero-band relative overflow-hidden rounded-card p-5 ${expandedMotion.className}`}
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Close"
+        className={`ww-hero-band ww-hero-tap relative block w-full overflow-hidden rounded-card p-5 text-left ${expandedMotion.className}`}
         data-tilt={expandedMotion.dataTilt}
         style={expandedMotion.style}
       >
@@ -532,7 +548,7 @@ function ExpandedContent({
 
           <WeatherIcon condition={view.condition} size={84} className="shrink-0" />
         </div>
-      </div>
+      </button>
 
       {/*
         Staggered reveal. Each child declares its own index and the delay comes
@@ -561,6 +577,8 @@ function ExpandedContent({
           </li>
         ))}
       </ul>
+
+      <SunLines golden={golden} uv={uv} timeZone={timeZone} index={answers.length + 1} />
 
       <dl className="mt-5 grid grid-cols-3 gap-2">
         <Metric
@@ -621,6 +639,14 @@ function ExpandedContent({
         </div>
       </dl>
 
+      <ShareButton
+        current={current}
+        locationName={locationName}
+        units={units}
+        line={line}
+        index={answers.length + 7}
+      />
+
       <p
         className="ww-stagger mt-4 text-2xs text-text-faint"
         style={{ "--i": answers.length + 5 } as React.CSSProperties}
@@ -654,5 +680,64 @@ function Metric({
       <dd className="text-sm tabular-nums">{format(counted)}</dd>
       <dt className="type-label mt-1 text-2xs">{label}</dt>
     </div>
+  );
+}
+
+/**
+ * Light and sun strength.
+ *
+ * Golden hour is a real interval, not a synonym for evening, and it is only
+ * shown while it is still ahead or happening.
+ *
+ * The UV line states when the sun is strongest and how strong. It deliberately
+ * stops there: what to do about it is the reader's business, and a weather app
+ * is in no position to tell anyone how long to spend in the sun
+ * (Decisions Log 79).
+ */
+function SunLines({
+  golden,
+  uv,
+  timeZone,
+  index,
+}: {
+  golden: GoldenHour | null;
+  uv: UvPeak | null;
+  timeZone: string;
+  index: number;
+}) {
+  if (!golden && !uv) return null;
+
+  return (
+    <ul
+      className="ww-stagger mt-4 flex flex-col gap-1.5"
+      style={{ "--i": index } as React.CSSProperties}
+    >
+      {golden && (
+        <li className="flex items-center gap-2 text-xs text-text-dim">
+          <span className="ww-verdict" style={{ background: "var(--sun)" }} />
+          {golden.active ? (
+            <span>
+              Golden hour now, until {formatTimeRounded(golden.end, timeZone)}
+            </span>
+          ) : (
+            <span>
+              Golden hour {formatTimeRounded(golden.start, timeZone)} to{" "}
+              {formatTimeRounded(golden.end, timeZone)}
+            </span>
+          )}
+        </li>
+      )}
+
+      {uv && (
+        <li className="flex items-center gap-2 text-xs text-text-dim">
+          <span className="ww-verdict" style={{ background: "var(--alert-advisory)" }} />
+          <span>
+            {uv.past ? "UV peaked at" : "UV peaks at"} {uv.index}, {uv.band}
+            {uv.past ? " " : " around "}
+            {formatTimeRounded(uv.time, timeZone)}
+          </span>
+        </li>
+      )}
+    </ul>
   );
 }

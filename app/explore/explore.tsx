@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
+import { haptic } from "@/lib/haptics";
 import { ScrollHint } from "@/components/scroll-hint";
 import { ErrorState } from "@/components/skeletons";
 import {
@@ -110,7 +111,10 @@ export function Explore() {
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setCategory(candidate)}
+                onClick={() => {
+                  haptic("select");
+                  setCategory(candidate);
+                }}
                 /* Underline rather than a filled pill. Pills were the one
                    remaining piece of the old chrome; the home screen dropped
                    them when the segmented control went, and two different

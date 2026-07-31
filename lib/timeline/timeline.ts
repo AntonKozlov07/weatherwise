@@ -159,31 +159,39 @@ export function buildTimeline({
   }
 
   /**
-   * Every later day's own pair, which the daily payload carries per day.
+   * Sun events belong to the hourly stretch and nowhere else.
    *
-   * An earlier version inferred nothing here and left days without sun rows, on
-   * the belief that the daily records had no sun times. They do.
+   * The daily records carry their own sun times, which is what lets a sunrise
+   * beyond today appear at all: with 48 hours of hourly data, tomorrow's is
+   * inside the window and worth a row. Past the last hour they are dropped.
+   * Hanging a pair off every weekly day turned six rows into eighteen and told
+   * you nothing you would act on, since a day that far out is a high, a low and
+   * a symbol (Decisions Log 82).
    */
-  for (const day of days) {
+  const placed = new Set(rows.map((row) => row.key));
+
+  for (const day of daily) {
     for (const event of ["sunrise", "sunset"] as const) {
       const time = day[event];
 
-      // Guarded against the hourly window: today's pair is already placed
-      // above, and OWM's first daily record is today.
-      if (time === null || time <= lastHour) continue;
+      if (time === null || time < now || time > lastHour) continue;
 
+      const key = `s-${event}-${time}`;
+      // Today's pair also arrives from the astronomy block above.
+      if (placed.has(key)) continue;
+
+      placed.add(key);
       rows.push({
         kind: "sun",
-        key: `s-${event}-${time}`,
+        key,
         time,
         event,
-        // Days have no spine of their own between them, so the sun sits level
-        // with the day it belongs to rather than interpolating across a gap of
-        // twenty-odd hours.
-        spine: normalise((day.high + day.low) / 2, min, max),
+        spine: interpolatedSpine(hourRows, time),
       });
     }
+  }
 
+  for (const day of days) {
     rows.push({
       kind: "day",
       key: `d-${day.date}`,

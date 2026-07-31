@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { ConditionThemeProvider } from "@/components/condition-theme-provider";
 import { Greeting } from "@/components/greeting";
 import { Hero } from "@/components/hero";
+import { LocationSwitch } from "@/components/location-switch";
 import { NowcastCard } from "@/components/nowcast-card";
 import { OfflineBanner } from "@/components/offline-banner";
 import { usePreferences } from "@/components/preferences-provider";
@@ -22,7 +23,7 @@ import { useGreetingGradient } from "@/lib/hooks/use-greeting-gradient";
 import { useTilt } from "@/lib/hooks/use-tilt";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { buildTimeline } from "@/lib/timeline/timeline";
-import { activeLocation } from "@/lib/preferences";
+import { activeLocation, type SavedLocation } from "@/lib/preferences";
 import { readPreferences } from "@/lib/preferences-store";
 import type { ForecastBundle } from "@/lib/weather/types";
 
@@ -37,6 +38,8 @@ function LoadedHome({
   units,
   alertBanners,
   motionEffects,
+  locations,
+  activeLocationId,
 }: {
   bundle: ForecastBundle;
   staleSince: number | null;
@@ -44,6 +47,8 @@ function LoadedHome({
   units: "metric" | "imperial";
   alertBanners: boolean;
   motionEffects: boolean;
+  locations: SavedLocation[];
+  activeLocationId: string | null;
 }) {
   const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
 
@@ -155,6 +160,9 @@ function LoadedHome({
         </p>
       </div>
 
+      {/* Only where there is a choice to make. */}
+      <LocationSwitch locations={locations} activeId={activeLocationId} />
+
       <div
         className="ww-rise"
         style={{ "--rise-delay": "60ms" } as React.CSSProperties}
@@ -163,6 +171,7 @@ function LoadedHome({
           view={view}
           current={bundle.current}
           hourly={bundle.hourly}
+          locationName={bundle.location.name}
           timeZone={bundle.location.timeZone}
           units={units}
           tilt={tilt}
@@ -267,6 +276,8 @@ export function HomeScreen() {
                 units={preferences.units}
                 alertBanners={preferences.alertBanners}
                 motionEffects={preferences.motionEffects}
+                locations={preferences.locations}
+                activeLocationId={preferences.activeLocationId}
               />
             )}
           </div>

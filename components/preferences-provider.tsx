@@ -2,6 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
+import { setHapticsEnabled } from "@/lib/haptics";
+
 import {
   applyAppearance,
   getServerSnapshot,
@@ -27,6 +29,11 @@ export function PreferencesProvider({
   const preferences = usePreferences();
 
   useEffect(() => applyAppearance(preferences), [preferences]);
+
+  // The haptics module is plain functions, not a hook, so that any event
+  // handler can fire feedback without threading a prop to it. This is the one
+  // place the preference is pushed into it.
+  useEffect(() => setHapticsEnabled(preferences.haptics), [preferences.haptics]);
 
   return <>{children}</>;
 }

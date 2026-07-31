@@ -9,6 +9,7 @@ import { LocationSearch } from "@/components/location-search";
 import { PushSettings } from "@/components/push-settings";
 import { resetPreferences, updatePreferences, usePreferences } from "@/components/preferences-provider";
 import { GhostButton, OptionGroup, TextField, Toggle } from "@/components/ui";
+import { haptic } from "@/lib/haptics";
 import { requestTiltPermission } from "@/lib/hooks/use-tilt";
 import type { FontSize, SavedLocation, Theme, Units } from "@/lib/preferences";
 
@@ -111,6 +112,18 @@ export function Settings() {
             declined, the switch goes back off rather than sitting on and doing
             nothing (Decisions Log 67).
           */}
+          <Toggle
+            label="Haptics"
+            hint="A short tick on taps and swipes. Silent where the device or browser has no support."
+            checked={preferences.haptics}
+            onChange={(haptics) => {
+              updatePreferences({ haptics });
+              // Fired from the tap itself, so turning it on demonstrates what
+              // it does, and confirms whether the device can do it at all.
+              if (haptics) haptic("impact");
+            }}
+          />
+
           <Toggle
             label="Motion effects"
             hint="Highlights on the forecast card follow how you hold the phone."

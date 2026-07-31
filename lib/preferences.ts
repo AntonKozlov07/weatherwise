@@ -40,6 +40,12 @@ export type Preferences = {
    * thing, the other is this user's own line in the sand (Decisions Log 69).
    */
   alertRules: ThresholdRule[];
+  /**
+   * Haptic feedback. On by default, unlike motion effects, because it needs no
+   * permission and costs nothing where the platform cannot deliver it
+   * (Decisions Log 78).
+   */
+  haptics: boolean;
   locations: SavedLocation[];
   activeLocationId: string | null;
   onboarded: boolean;
@@ -62,6 +68,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   alertBanners: true,
   motionEffects: false,
   alertRules: [],
+  haptics: true,
   locations: [],
   activeLocationId: null,
   onboarded: false,
@@ -155,6 +162,10 @@ export function parsePreferences(raw: string | null): Preferences {
     // The same guard the server uses, so a hand-edited localStorage cannot put
     // a malformed rule into the UI or onto the wire.
     alertRules: parseRules(stored.alertRules),
+    haptics:
+      typeof stored.haptics === "boolean"
+        ? stored.haptics
+        : DEFAULT_PREFERENCES.haptics,
     locations,
     activeLocationId,
     onboarded:

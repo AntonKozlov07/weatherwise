@@ -109,11 +109,10 @@ describe("buildTimeline", () => {
   });
 
   /**
-   * Every day gets its own pair, taken from that day's record rather than
-   * inferred from a 24-hour offset, which would drift and be wrong in exactly
-   * the season people notice.
+   * Sun events belong to the hourly stretch. A pair hung off every weekly day
+   * turned six rows into eighteen and said nothing anyone would act on.
    */
-  it("marks sunrise and sunset on the later days too", () => {
+  it("keeps sun rows inside the hourly window", () => {
     const rows = buildTimeline({
       hourly: hours(new Array(24).fill(15)),
       daily: days(4),
@@ -121,24 +120,47 @@ describe("buildTimeline", () => {
       now: NOW,
     });
 
+    const lastHourTime = NOW + 23 * HOUR;
     const events = rows.filter((row) => row.kind === "sun");
 
-    // Today's pair from astronomy, plus a pair for each of the four days.
-    expect(events).toHaveLength(2 + 8);
-    expect(
-      events.filter((row) => row.kind === "sun" && row.event === "sunrise"),
-    ).toHaveLength(5);
+    expect(events.length).toBeGreaterThan(0);
+    for (const event of events) {
+      expect(event.time).toBeLessThanOrEqual(lastHourTime);
+    }
   });
 
-  it("omits a day's sun rows where the vendor omitted the times", () => {
+  // A day beyond the hours is a high, a low and a symbol. Nothing else.
+  it("hangs no sun rows off the weekly days", () => {
     const rows = buildTimeline({
-      hourly: hours(new Array(4).fill(15)),
-      daily: days(6, NOW + 60 * HOUR, false),
+      hourly: hours(new Array(12).fill(15)),
+      daily: days(6),
       astronomy: noSun,
       now: NOW,
     });
 
-    expect(rows.filter((row) => row.kind === "sun")).toHaveLength(0);
+    const firstDay = rows.findIndex((row) => row.kind === "day");
+    expect(rows.slice(firstDay).every((row) => row.kind === "day")).toBe(true);
+  });
+
+  /**
+   * A longer hourly window legitimately reaches the following morning, and the
+   * daily records are what make that sunrise available at all.
+   */
+  it("shows a later day's sunrise when the hours reach it", () => {
+    const rows = buildTimeline({
+      hourly: hours(new Array(48).fill(15)),
+      daily: days(8, NOW),
+      astronomy,
+      now: NOW,
+    });
+
+    const sunrises = rows.filter(
+      (row) => row.kind === "sun" && row.event === "sunrise",
+    );
+
+    expect(sunrises.length).toBeGreaterThan(1);
+    const keys = rows.filter((row) => row.kind === "sun").map((row) => row.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   // Today's record is inside the hourly window, so its pair must not be added
