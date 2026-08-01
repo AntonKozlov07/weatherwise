@@ -427,6 +427,20 @@
     background: color-mix(in oklab, var(--sun) 45%, transparent);
   }
 
+  /* A bottom sheet. Rises from the edge it is anchored to, which is where the
+     thumb already is on a phone. */
+  .ww-sheet {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: var(--space-4) var(--gutter)
+      calc(var(--space-6) + env(safe-area-inset-bottom));
+    box-shadow: var(--elevation-floating);
+    animation: ww-sheet-in var(--dur-base) var(--ease-out) both;
+    max-height: 80dvh;
+    overflow-y: auto;
+  }
+
   /* ---- Explore ----------------------------------------------------------
      Deliberately the same vocabulary as the timeline: rows separated by
      hairlines, labels in the small caps treatment, selection shown by an
@@ -833,6 +847,15 @@
   100% {
     transform: translate3d(280%, 0, 0) scaleX(1);
     opacity: 0;
+  }
+}
+
+@keyframes ww-sheet-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
   }
 }
 

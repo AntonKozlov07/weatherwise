@@ -1,23 +1,23 @@
 import type { VoiceDigest } from "@/lib/voice/prompt";
 
 /**
- * Checks a generated line before it is allowed on the screen.
+ * Checks generated copy before it is allowed on the screen.
  *
  * A rules engine cannot state a temperature the forecast does not contain. A
  * model can, and the failure is invisible: "rain around 4pm" reads exactly as
  * well when there is no rain coming. This is the check that makes generated
- * copy safe to show, and anything that fails it falls back to the deterministic
- * sentence rather than being shown with a caveat (Decisions Log 84).
+ * copy safe to show, and anything failing it falls back to the deterministic
+ * version rather than being shown with a caveat (Decisions Log 85).
  *
- * The rule is that every number in the line must be one the model was given.
- * Not similar to one, not within a degree: present in the digest. That is
- * stricter than necessary and deliberately so, because the alternative is
- * reasoning about which wrong numbers are acceptable.
+ * The rule is that every number must be one the model was given. Not similar to
+ * one, not within a degree: present in the digest. That is stricter than
+ * necessary and deliberately so, because the alternative is reasoning about
+ * which wrong numbers are acceptable.
  */
 
 const MAX_LENGTH = 160;
 
-/** Words that mean the model narrated instead of writing the line. */
+/** Words that mean the model narrated instead of writing the copy. */
 const BANNED = [
   "as an ai",
   "language model",
@@ -30,12 +30,14 @@ const BANNED = [
   "forecast:",
 ];
 
+export type Advice = { line: string; wear: string; activity: string };
+
 export type Validation =
-  | { ok: true; line: string }
+  | { ok: true; advice: Advice }
   | { ok: false; reason: string };
 
 /**
- * Every number the line is allowed to use.
+ * Every number the copy is allowed to use.
  *
  * Clock hours are derived rather than listed: the digest holds offsets like
  * "rain in 4 hours", and a line may legitimately turn that into "around 4pm",
@@ -54,7 +56,7 @@ function allowedNumbers(digest: VoiceDigest): Set<number> {
     digest.wetHours,
     digest.heaviestMmH,
     digest.hour,
-    // The swing, which a line may state as "up 6 degrees".
+    // The swing, which copy may state as "up 6 degrees".
     digest.high - digest.low,
     Math.abs(digest.high - digest.temperature),
     Math.abs(digest.temperature - digest.low),
@@ -74,29 +76,59 @@ function allowedNumbers(digest: VoiceDigest): Set<number> {
   return allowed;
 }
 
-export function validateLine(raw: string, digest: VoiceDigest): Validation {
-  // Models like to wrap a line in quotes even when told not to.
-  const line = raw.trim().replace(/^["'“”]+|["'“”]+$/g, "").trim();
+/** One field. Returns the cleaned string, or the reason it was rejected. */
+function checkField(raw: string, allowed: Set<number>): string | { reason: string } {
+  // Models like to wrap copy in quotes even when told not to.
+  const text = raw.trim().replace(/^["'“”]+|["'“”]+$/g, "").trim();
 
-  if (line.length === 0) return { ok: false, reason: "empty" };
-  if (line.length > MAX_LENGTH) return { ok: false, reason: "too long" };
+  if (text.length === 0) return { reason: "empty" };
+  if (text.length > MAX_LENGTH) return { reason: "too long" };
+  if (text.includes("\n")) return { reason: "multiple lines" };
 
-  const lower = line.toLowerCase();
+  const lower = text.toLowerCase();
 
   for (const phrase of BANNED) {
-    if (lower.includes(phrase)) return { ok: false, reason: `banned phrase: ${phrase}` };
+    if (lower.includes(phrase)) return { reason: `banned phrase: ${phrase}` };
   }
 
-  if (line.includes("\n")) return { ok: false, reason: "multiple lines" };
-
-  const allowed = allowedNumbers(digest);
-
-  for (const match of line.matchAll(/\d+(?:\.\d+)?/g)) {
+  for (const match of text.matchAll(/\d+(?:\.\d+)?/g)) {
     const value = Number(match[0]);
-    if (!allowed.has(value)) {
-      return { ok: false, reason: `unsupported number: ${value}` };
-    }
+    if (!allowed.has(value)) return { reason: `unsupported number: ${value}` };
   }
 
-  return { ok: true, line };
+  return text;
+}
+
+/**
+ * Checks a whole response. All three fields, or none of them.
+ *
+ * A response where the clothing advice is sound but the line invents a
+ * temperature is not a partial success. It means the model was willing to make
+ * something up, and the other fields have no better claim to being right than
+ * the one that was caught.
+ */
+export function validateAdvice(raw: unknown, digest: VoiceDigest): Validation {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, reason: "not an object" };
+  }
+
+  const candidate = raw as Partial<Advice>;
+  const allowed = allowedNumbers(digest);
+  const checked: Partial<Advice> = {};
+
+  for (const field of ["line", "wear", "activity"] as const) {
+    const value = candidate[field];
+
+    if (typeof value !== "string") return { ok: false, reason: `${field} missing` };
+
+    const result = checkField(value, allowed);
+
+    if (typeof result !== "string") {
+      return { ok: false, reason: `${field}: ${result.reason}` };
+    }
+
+    checked[field] = result;
+  }
+
+  return { ok: true, advice: checked as Advice };
 }

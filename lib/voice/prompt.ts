@@ -96,45 +96,47 @@ export function digestKey(digest: VoiceDigest, latitude: number, longitude: numb
   ].join("|");
 }
 
-export const SYSTEM_PROMPT = `You write a single line for a weather app's home screen. One sentence, or two short ones. Never more.
+/**
+ * The system prompt.
+ *
+ * Kept short on purpose. It is sent on every uncached call, so every sentence
+ * here is paid for repeatedly, and the examples do more work than instructions
+ * would (Decisions Log 90).
+ *
+ * Three fields in one response rather than three calls: the model has already
+ * read the forecast, and asking it three times would triple the input tokens to
+ * re-state what it was just told.
+ */
+export const SYSTEM_PROMPT = `You write copy for a weather app. Reply with JSON only:
+{"line":"...","wear":"...","activity":"..."}
 
-Voice: a person who knows the area telling you what today is actually like. Dry, specific, a little wry. Never cheerful, never a forecast read aloud, never advice dressed as observation.
+line: one sentence on what the day is actually like. Dry, specific, a little wry.
+wear: what to put on. Concrete garments, not "dress warmly".
+activity: a sport or outdoor activity that suits these conditions, and when.
 
-Hard rules:
-- Use ONLY the numbers given to you. Never state a temperature, time, or measurement that is not in the data.
-- Never invent precipitation, wind, or conditions that are not in the data.
-- No greetings, no emoji, no exclamation marks, no hashtags.
-- Do not mention that you are a model, or refer to the data, the app, or yourself.
-- Do not use the words "today's forecast" or "currently".
-- 140 characters maximum.
+Rules:
+- Use ONLY numbers present in the data. Never state a temperature, time or measurement you were not given.
+- Never invent rain, wind or conditions not in the data.
+- Each field under 120 characters. No emoji, no exclamation marks, no greetings.
+- Do not mention the data, the app, or yourself.
 
-Good examples:
-Cool start, warming fast. Jacket now, gone by noon.
-Rain arriving around 4pm and staying for the evening.
-Below freezing and staying there. Watch for ice underfoot.
-Grey but dry. Nothing that needs planning around.
-
-Reply with the line only. No quotes, no preamble.`;
+Example:
+{"line":"Cool start, warming fast. Jacket now, gone by noon.","wear":"Light jacket over a t-shirt, you will want it off by lunch.","activity":"Good morning for a run before it warms up."}`;
 
 export function userPrompt(digest: VoiceDigest): string {
   const lines = [
-    `Temperature: ${digest.temperature}C, feels like ${digest.feelsLike}C`,
-    `Condition: ${digest.condition}`,
-    `Next 12 hours: high ${digest.high}C, low ${digest.low}C`,
-    `Humidity: ${digest.humidity}%`,
-    `Wind: ${digest.windKph} km/h, gusting ${digest.gustKph} km/h`,
-    `UV index: ${digest.uvIndex}`,
+    `Now: ${digest.temperature}C, feels ${digest.feelsLike}C, ${digest.condition}`,
+    `Next 12h: high ${digest.high}C, low ${digest.low}C`,
+    `Humidity ${digest.humidity}%, wind ${digest.windKph} km/h, gusts ${digest.gustKph} km/h, UV ${digest.uvIndex}`,
     `Local hour: ${digest.hour}`,
   ];
 
   if (digest.hoursToRain !== null) {
-    lines.push(`Rain starts in ${digest.hoursToRain} hour(s), heaviest ${digest.heaviestMmH} mm/h`);
+    lines.push(`Rain in ${digest.hoursToRain}h, heaviest ${digest.heaviestMmH} mm/h`);
   } else if (digest.hoursToDry !== null) {
-    lines.push(`Raining now, stops in ${digest.hoursToDry} hour(s)`);
-  } else if (digest.wetHours > 0) {
-    lines.push(`${digest.wetHours} wet hours in the next 12`);
+    lines.push(`Raining, stops in ${digest.hoursToDry}h`);
   } else {
-    lines.push("No rain in the next 12 hours");
+    lines.push("No rain in the next 12h");
   }
 
   return lines.join("\n");

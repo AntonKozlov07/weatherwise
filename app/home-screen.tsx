@@ -60,7 +60,7 @@ function LoadedHome({
 
   // Owned here rather than in the hero, so there is one line per screen and the
   // request is not repeated by every component that wants to show it.
-  const line = useVoiceLine(bundle.current, bundle.hourly, bundle.location);
+  const advice = useVoiceLine(bundle.current, bundle.hourly, bundle.location);
 
   const rows = useMemo(
     () =>
@@ -184,7 +184,7 @@ function LoadedHome({
           airQuality={bundle.airQuality}
           windGust={bundle.current.wind.gust ?? bundle.current.wind.speed}
           astronomy={bundle.astronomy}
-          line={line}
+          advice={advice}
         />
       </div>
 

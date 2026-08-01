@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { activityAdvice, wearAdvice } from "@/lib/voice/advice";
+import { buildDigest } from "@/lib/voice/prompt";
+import type { Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
 import type { CurrentConditions, HourlyPoint, LocationSummary } from "@/lib/weather/types";
 
@@ -21,14 +24,20 @@ export function useVoiceLine(
   current: CurrentConditions,
   hourly: HourlyPoint[],
   location: LocationSummary,
-): string {
-  const deterministic = voiceLine({ current, hourly, timeZone: location.timeZone });
+): Advice {
+  const digest = buildDigest(current, hourly, location.timeZone);
+
+  const deterministic: Advice = {
+    line: voiceLine({ current, hourly, timeZone: location.timeZone }),
+    wear: wearAdvice(digest),
+    activity: activityAdvice(digest),
+  };
 
   // The generated line is stored with the key it belongs to, rather than as a
   // bare string. Storing it bare meant switching city left the previous one on
   // screen until the new request came back, which is the one thing this line
   // must never do: it would be describing somewhere else entirely.
-  const [generated, setGenerated] = useState<{ key: string; line: string } | null>(
+  const [generated, setGenerated] = useState<{ key: string; advice: Advice } | null>(
     null,
   );
 
@@ -53,9 +62,17 @@ export function useVoiceLine(
       }),
     })
       .then((response) => (response.ok ? response.json() : null))
-      .then((payload: { line?: string } | null) => {
-        if (cancelled || !payload?.line) return;
-        setGenerated({ key, line: payload.line });
+      .then((payload: Partial<Advice> | null) => {
+        if (cancelled || !payload?.line || !payload.wear || !payload.activity) return;
+
+        setGenerated({
+          key,
+          advice: {
+            line: payload.line,
+            wear: payload.wear,
+            activity: payload.activity,
+          },
+        });
       })
       .catch(() => {
         // Offline, or the route is unavailable. The deterministic line stands.
@@ -67,5 +84,5 @@ export function useVoiceLine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return generated?.key === key ? generated.line : deterministic;
+  return generated?.key === key ? generated.advice : deterministic;
 }

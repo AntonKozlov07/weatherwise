@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { gradientMotion } from "@/lib/gradient-motion";
 import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
+import type { Advice } from "@/lib/voice/validate";
 import { useCountUp } from "@/lib/hooks/use-count-up";
 import type { Tilt } from "@/lib/hooks/use-tilt";
 import type {
@@ -83,7 +84,7 @@ type Props = {
   windGust: number;
   astronomy: Astronomy;
   /** Supplied by the screen, which owns where the wording comes from. */
-  line: string;
+  advice: Advice;
 };
 
 export function Hero({
@@ -98,8 +99,9 @@ export function Hero({
   airQuality,
   windGust,
   astronomy,
-  line,
+  advice,
 }: Props) {
+  const line = advice.line;
   const [phase, setPhase] = useState<Phase>("closed");
   const [drag, setDrag] = useState(0);
 
@@ -303,6 +305,7 @@ export function Hero({
 
             <ExpandedContent
               onDismiss={close}
+              advice={advice}
               hourly={hourly}
               locationName={locationName}
               view={view}
@@ -489,6 +492,7 @@ function ExpandedContent({
   line,
   answers,
   active,
+  advice,
   hourly,
   locationName,
   airQuality,
@@ -505,6 +509,7 @@ function ExpandedContent({
   line: string;
   answers: ActivityAnswer[];
   active: boolean;
+  advice: Advice;
   hourly: HourlyPoint[];
   locationName: string;
   airQuality: AirQuality | null;
@@ -575,7 +580,21 @@ function ExpandedContent({
         ))}
       </ul>
 
-      <SunLines golden={golden} uv={uv} timeZone={timeZone} index={answers.length + 1} />
+      <ul
+        className="ww-stagger mt-4 flex flex-col gap-2"
+        style={{ "--i": answers.length + 1 } as React.CSSProperties}
+      >
+        <li className="flex gap-2 text-xs">
+          <span className="type-label w-14 shrink-0 text-2xs">Wear</span>
+          <span className="flex-1 text-text-dim">{advice.wear}</span>
+        </li>
+        <li className="flex gap-2 text-xs">
+          <span className="type-label w-14 shrink-0 text-2xs">Good for</span>
+          <span className="flex-1 text-text-dim">{advice.activity}</span>
+        </li>
+      </ul>
+
+      <SunLines golden={golden} uv={uv} timeZone={timeZone} index={answers.length + 2} />
 
       <dl className="mt-5 grid grid-cols-3 gap-2">
         <Metric

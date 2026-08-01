@@ -558,6 +558,32 @@ service worker keeps serving cached assets, and that already caused one round of
     needs explaining, and the legal notices that replaced it in the menu are
     reference material people occasionally need rather than a tour nobody reads.
 
+89. **Every generated field has a deterministic one behind it.** Clothing and
+    activity advice are not exceptions to the rule that governs the voice line.
+    A failed call is invisible rather than a gap on the screen, and the offline
+    version of the app loses nothing.
+
+90. **Haiku, one call, three fields.** The copy is short and formulaic from a
+    small structured input, which is exactly what the cheapest model is best at.
+    Asking separately for the line, the clothing and the activity would re-send
+    the forecast three times, and input tokens dominate the cost of a request
+    this small. The response is prefilled with `{` so it cannot open with a
+    preamble, `max_tokens` is capped tightly because an unbounded limit is an
+    unbounded bill, and the cache key already collapses small drift so a
+    location generates one response per meaningful change rather than one per
+    poll.
+
+    Validation is all-or-nothing across the three fields. A response where the
+    clothing advice is sound but the line invents a temperature is not a partial
+    success: it means the model was willing to make something up, and the other
+    fields have no better claim to being right than the one that was caught.
+
+91. **Adding a location happens in place.** The button opened Settings, which
+    answered the request by sending the user somewhere else and leaving them to
+    find their way back. A sheet that closes itself when the job is done is the
+    shorter path, and the new location is switched to immediately, because
+    adding a place and then having to tap it as well is a step nobody wants.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

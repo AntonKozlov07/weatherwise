@@ -1,5 +1,6 @@
 import { buildDigest, digestKey, SYSTEM_PROMPT, userPrompt } from "@/lib/voice/prompt";
-import { validateLine } from "@/lib/voice/validate";
+import { activityAdvice, wearAdvice } from "@/lib/voice/advice";
+import { validateAdvice, type Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
 import type { CurrentConditions, HourlyPoint } from "@/lib/weather/types";
 
@@ -21,7 +22,14 @@ export const maxDuration = 15;
 
 /** A model call is not worth more than this for one sentence. */
 const TIMEOUT_MS = 6_000;
-const MODEL = "claude-sonnet-5";
+/*
+  Haiku, by request, and the right tool regardless: this is short, formulaic
+  copy from a small structured input, which is what the model is quickest and
+  cheapest at. One call returns all three fields, because asking three times
+  would re-send the forecast three times and input tokens dominate the cost of
+  a request this small (Decisions Log 90).
+*/
+const MODEL = "claude-haiku-4-5-20251001";
 
 /**
  * Cached by digest, not by request.
@@ -31,11 +39,13 @@ const MODEL = "claude-sonnet-5";
  * Module scope, which on serverless survives only as long as the instance; that
  * is still most repeat views, and the fallback covers the rest.
  */
-const cache = new Map<string, { line: string; at: number }>();
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const cache = new Map<string, { advice: Advice; at: number }>();
+/* An hour. The digest key already collapses small drift, so a longer window
+   mostly avoids regenerating the same copy after a cold start. */
+const CACHE_TTL_MS = 60 * 60 * 1000;
 const CACHE_MAX = 200;
 
-function cached(key: string): string | null {
+function cached(key: string): Advice | null {
   const hit = cache.get(key);
   if (!hit) return null;
 
@@ -44,10 +54,10 @@ function cached(key: string): string | null {
     return null;
   }
 
-  return hit.line;
+  return hit.advice;
 }
 
-function remember(key: string, line: string): void {
+function remember(key: string, advice: Advice): void {
   // Oldest out first. A map iterates in insertion order, so this is enough
   // without a real LRU for a cache this small.
   if (cache.size >= CACHE_MAX) {
@@ -55,7 +65,7 @@ function remember(key: string, line: string): void {
     if (oldest !== undefined) cache.delete(oldest);
   }
 
-  cache.set(key, { line, at: Date.now() });
+  cache.set(key, { advice, at: Date.now() });
 }
 
 type Body = {
@@ -84,9 +94,17 @@ async function generate(digest: ReturnType<typeof buildDigest>): Promise<string 
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 100,
+        // Three short fields plus JSON scaffolding. Capped tightly, because an
+        // unbounded limit is an unbounded bill for copy that must stay short.
+        max_tokens: 220,
+        temperature: 1,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt(digest) }],
+        messages: [
+          { role: "user", content: userPrompt(digest) },
+          // Prefilled, so the reply starts inside the object and cannot open
+          // with a preamble that would have to be stripped or rejected.
+          { role: "assistant", content: "{" },
+        ],
       }),
     });
 
@@ -96,7 +114,11 @@ async function generate(digest: ReturnType<typeof buildDigest>): Promise<string 
       content?: { type: string; text?: string }[];
     };
 
-    return payload.content?.find((block) => block.type === "text")?.text ?? null;
+    const text = payload.content?.find((block) => block.type === "text")?.text;
+    if (text === undefined) return null;
+
+    // The prefill is not echoed back, so it is restored before parsing.
+    return `{${text}`;
   } catch {
     // Timeout, network, or a malformed response. All the same outcome here.
     return null;
@@ -120,33 +142,46 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: { message: "Missing forecast." } }, { status: 400 });
   }
 
-  // The deterministic line is computed first, so there is always something to
-  // return and the generated path never has to handle its own failure.
-  const fallback = voiceLine({ current, hourly, timeZone });
+  const digest = buildDigest(current, hourly, timeZone);
+
+  // The deterministic version is computed first, so there is always something
+  // to return and the generated path never has to handle its own failure.
+  const fallback: Advice = {
+    line: voiceLine({ current, hourly, timeZone }),
+    wear: wearAdvice(digest),
+    activity: activityAdvice(digest),
+  };
 
   try {
-    const digest = buildDigest(current, hourly, timeZone);
     const key = digestKey(digest, body.latitude ?? 0, body.longitude ?? 0);
 
     const hit = cached(key);
-    if (hit) return Response.json({ line: hit });
+    if (hit) return Response.json(hit);
 
     const raw = await generate(digest);
-    if (raw === null) return Response.json({ line: fallback });
+    if (raw === null) return Response.json(fallback);
 
-    const checked = validateLine(raw, digest);
+    let parsed: unknown;
 
-    if (!checked.ok) {
-      // Logged without the line itself: it is model output about a user's
-      // location, and the reason is what makes the check improvable.
-      console.warn(`Voice line rejected: ${checked.reason}`);
-      return Response.json({ line: fallback });
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return Response.json(fallback);
     }
 
-    remember(key, checked.line);
-    return Response.json({ line: checked.line });
+    const checked = validateAdvice(parsed, digest);
+
+    if (!checked.ok) {
+      // Logged without the copy itself: it is model output about a user's
+      // location, and the reason is what makes the check improvable.
+      console.warn(`Generated copy rejected: ${checked.reason}`);
+      return Response.json(fallback);
+    }
+
+    remember(key, checked.advice);
+    return Response.json(checked.advice);
   } catch (error) {
-    console.error("Voice generation failed:", (error as Error).message);
-    return Response.json({ line: fallback });
+    console.error("Copy generation failed:", (error as Error).message);
+    return Response.json(fallback);
   }
 }

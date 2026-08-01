@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 
+import { LocationSearch } from "@/components/location-search";
 import { updatePreferences } from "@/components/preferences-provider";
 import { updatePushLocation } from "@/lib/push/client";
 import type { SavedLocation } from "@/lib/preferences";
@@ -31,6 +32,19 @@ export function LocationSwitch({
   locations: SavedLocation[];
   activeId: string | null;
 }) {
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (!adding) return;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAdding(false);
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [adding]);
+
   // Nothing saved at all means onboarding has not run or the default location
   // is in use, and there is nothing to switch between yet.
   if (locations.length === 0) return null;
@@ -71,13 +85,56 @@ export function LocationSwitch({
 
         {/* Always present, so adding a second location is reachable from the
             screen you would think to look on. */}
-        <Link
-          href="/settings"
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          aria-haspopup="dialog"
+          aria-expanded={adding}
           className="ww-tab type-label shrink-0 whitespace-nowrap px-1 pb-2 pt-1 text-2xs"
         >
           + Add
-        </Link>
+        </button>
       </div>
+
+      {adding && (
+        <div
+          className="ww-hero-backdrop fixed inset-0 z-50 flex items-end"
+          onClick={() => setAdding(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add a location"
+            onClick={(event) => event.stopPropagation()}
+            className="ww-sheet w-full"
+          >
+            <span className="ww-hero-grab" aria-hidden="true" />
+
+            <h2 className="type-label mb-3 text-2xs">Add a location</h2>
+
+            <LocationSearch
+              onSelect={(location) => {
+                if (!locations.some((saved) => saved.id === location.id)) {
+                  updatePreferences({
+                    locations: [...locations, location],
+                    // Switched to immediately: adding a place and then having to
+                    // tap it as well is a step nobody wants.
+                    activeLocationId: location.id,
+                  });
+
+                  void updatePushLocation({
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                  });
+                }
+
+                setAdding(false);
+              }}
+              existingIds={locations.map((location) => location.id)}
+            />
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
