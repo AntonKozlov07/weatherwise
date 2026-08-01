@@ -221,9 +221,13 @@
        scrollable rather than clipped. Unreachable buttons are worse than a
        scrollbar, and `hidden` here hid onboarding's Continue button
        (Decisions Log 52). */
+    /* Named once and reused, so a screen that wants to bleed past the padding
+       cancels exactly what was applied rather than a guess at it. */
+    --safe-top: env(safe-area-inset-top);
+
     overflow-x: hidden;
     overflow-y: auto;
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top);
     padding-right: env(safe-area-inset-right);
     padding-left: env(safe-area-inset-left);
     /*
@@ -241,7 +245,8 @@
      alone: when Safari reports 0 there, the header lands on the Dynamic Island. */
   @media (display-mode: standalone) {
     .app-shell {
-      padding-top: max(env(safe-area-inset-top), 3rem);
+      --safe-top: max(env(safe-area-inset-top), 3rem);
+      padding-top: var(--safe-top);
     }
   }
 
@@ -251,6 +256,33 @@
     min-height: 0;
     flex: 1 1 0%;
     flex-direction: column;
+  }
+
+  /**
+   * A layer that covers the whole display, ignoring the shell's top inset.
+   *
+   * The map is the only thing that wants this. Anchored to the shell's padded
+   * box it stopped short of the top and, on some devices, of the bottom, which
+   * showed as a dead band where the tiles simply ended. Pinned to `100dvh` and
+   * offset by exactly the padding the shell applied, it cannot fall short at
+   * either end (Decisions Log 95).
+   *
+   * Not `position: fixed`, which would be the obvious tool: the route
+   * transition wrapper carries a transform, and a transformed ancestor makes
+   * fixed positioning resolve against it instead of the viewport. That is the
+   * same trap that sized the hero's backdrop to the hero.
+   */
+  .screen-bleed {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(-1 * var(--safe-top, 0px));
+    height: 100dvh;
+  }
+
+  /* Controls inside a bleeding layer have to re-apply the inset themselves, or
+     they sit under the status bar. */
+  .bleed-safe-top {
+    padding-top: var(--safe-top, 0px);
   }
 
   /* The scrolling region of a screen that has more content than height. */
@@ -501,6 +533,54 @@
 
   .ww-article:active {
     opacity: 0.6;
+  }
+
+  /* ---- Menu drawer header ------------------------------------------------
+     Runs to the top edge and absorbs the status bar inset, so the notch does
+     not leave a band of bare surface above the first line. */
+
+  .ww-drawer-head {
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-5) var(--space-6) var(--space-6);
+    background: linear-gradient(
+      160deg,
+      var(--grad-0) 0%,
+      var(--grad-1) 60%,
+      var(--grad-2) 100%
+    );
+    background-size: 200% 200%;
+    animation: ww-drift 24s var(--ease-in-out) infinite;
+  }
+
+  /*
+    Soft overlapping blooms, in the condition accent and the gradient's own
+    stops. Muted rather than vivid: this sits behind the app's name and a place
+    name, and colour that competes with them would be decoration winning an
+    argument it should not be in.
+  */
+  .ww-drawer-aurora {
+    position: absolute;
+    inset: -30%;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        38% 38% at 22% 18%,
+        color-mix(in oklab, var(--accent) 42%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        44% 44% at 82% 34%,
+        color-mix(in oklab, var(--grad-2) 55%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        50% 50% at 55% 96%,
+        color-mix(in oklab, var(--accent) 26%, transparent),
+        transparent 74%
+      );
+    filter: blur(6px);
+    animation: ww-aurora 30s var(--ease-in-out) infinite alternate;
   }
 
   /* ---- Time scrubber ---------------------------------------------------- */
@@ -847,6 +927,15 @@
   100% {
     transform: translate3d(280%, 0, 0) scaleX(1);
     opacity: 0;
+  }
+}
+
+@keyframes ww-aurora {
+  from {
+    transform: translate3d(-4%, -3%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(5%, 4%, 0) scale(1.12);
   }
 }
 

@@ -84,33 +84,40 @@ export function AppHeader({ locationName }: { locationName?: string }) {
 
           <nav
             aria-label="Main menu"
-            className="relative flex h-full w-72 max-w-[80%] flex-col gap-1 overflow-y-auto bg-surface p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+            className="relative flex h-full w-72 max-w-[80%] flex-col overflow-y-auto bg-surface pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
           >
             {/*
-              The drawer opens below the status bar, and on a phone with a
-              notch the inset left a band of empty surface above the first
-              line. Filled with the mark and the wordmark rather than by
-              closing the gap: the space is there because of the hardware, and
-              a drawer that opens onto its own name reads as deliberate where
-              an empty strip reads as a mistake (Decisions Log 93).
+              The header runs to the top edge and absorbs the status bar inset
+              rather than sitting below a band of empty surface. The colour is
+              the condition gradient, the same one on the hero, so the drawer is
+              tinted by the actual weather instead of carrying a decoration that
+              means nothing (Decisions Log 93).
             */}
-            <div className="mb-5 flex items-center gap-3">
-              <Image
-                src="/brand/logo-mark-thick.svg"
-                alt=""
-                width={26}
-                height={26}
-                className="shrink-0 opacity-80"
-              />
-              <span className="type-wordmark text-sm">WeatherWise</span>
+            <div className="ww-drawer-head bleed-safe-top">
+              <span className="ww-drawer-aurora" aria-hidden="true" />
+
+              <div className="relative flex items-center gap-3">
+                <Image
+                  src="/brand/logo-mark-thick.svg"
+                  alt=""
+                  width={22}
+                  height={22}
+                  className="shrink-0 opacity-90"
+                />
+                <span className="type-wordmark text-xs">WeatherWise</span>
+              </div>
+
+              {locationName && (
+                <p className="type-label relative mt-6 text-2xs text-[color:var(--on-band-dim)]">
+                  Showing
+                </p>
+              )}
+              <p className="type-heading relative mt-1 text-xl">
+                {locationName ?? "Weather, at a glance"}
+              </p>
             </div>
 
-            {locationName && (
-              <p className="type-label mb-1 text-2xs">Showing</p>
-            )}
-            <p className="type-heading mb-5 text-lg">
-              {locationName ?? "Weather, at a glance"}
-            </p>
+            <div className="flex flex-1 flex-col gap-1 p-6 pt-5">
 
             <Link
               href="/settings"
@@ -145,6 +152,7 @@ export function AppHeader({ locationName }: { locationName?: string }) {
               <p className="px-3 pt-2 text-2xs text-text-faint">
                 WeatherWise. Forecasts are estimates.
               </p>
+            </div>
             </div>
           </nav>
         </div>

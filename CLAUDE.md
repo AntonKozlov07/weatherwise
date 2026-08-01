@@ -597,11 +597,15 @@ service worker keeps serving cached assets, and that already caused one round of
     formatter's job, not the caller's. Found by a test written for the casing
     pass, not by looking.
 
-93. **The drawer opens onto its own name.** The safe-area inset left a band of
-    empty surface above the first line on a phone with a notch. Filled with the
-    mark and wordmark rather than by closing the gap, since the space exists
-    because of the hardware: a drawer that opens onto its own identity reads as
-    deliberate where an empty strip reads as a mistake.
+93. **The drawer header runs to the top edge and carries the condition
+    gradient.** The safe-area inset left a band of empty surface above the first
+    line. A first attempt filled it with the logo alone, which was correctly
+    called boring: it occupied the space without justifying it. The header now
+    absorbs the inset itself and is painted with the same gradient as the hero,
+    plus soft blooms in the accent, so the drawer is tinted by the actual
+    weather rather than decorated with something that means nothing. Muted, not
+    vivid: it sits behind the app's name and a place name, and colour that
+    competes with them is decoration winning an argument it should not be in.
 
 94. **Prompt caching is not used, and adding it would cost more.** Haiku 4.5
     requires 4,096 tokens before anything is cacheable; the system prompt is
@@ -611,6 +615,27 @@ service worker keeps serving cached assets, and that already caused one round of
     window would expire between them, making each one a cache write at 1.25x.
     Roughly twenty times the current cost. The response cache keyed by weather
     digest is what actually removes the repeat calls, and it already exists.
+
+95. **The map is pinned to the display, not to the shell's padded box.**
+    Anchored to the box it stopped short at the edges, showing as a dead band
+    where the tiles simply ended. It now uses `100dvh` offset by exactly the
+    padding the shell applied, which is shared as `--safe-top` so the two cannot
+    disagree. Not `position: fixed`, which would be the obvious tool: the route
+    transition wrapper carries a transform, and a transformed ancestor makes
+    fixed positioning resolve against it rather than the viewport, which is the
+    same trap that sized the hero's backdrop to the hero.
+
+96. **Attribution sits at the very bottom edge, below the dock.** It is a
+    licence obligation rather than something anyone opened the app for. Present
+    and legible is the whole requirement; it was taking a floating pill in the
+    middle of the map.
+
+97. **Radar cannot show the future today, and the code is already ready for it
+    when it can.** RainViewer publishes past frames and a nowcast, and both are
+    parsed, but the public endpoint is currently returning zero nowcast frames:
+    thirteen past frames covering exactly two hours and nothing forward. Checked
+    against the live API rather than assumed. If nowcast frames reappear the
+    timelapse extends on its own, with no change here.
 
 Outstanding:
 

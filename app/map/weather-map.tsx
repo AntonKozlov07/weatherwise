@@ -329,7 +329,7 @@ export function WeatherMap() {
     // Full screen, not a pane above the nav. The map fills the shell and the
     // nav floats over it, so the canvas runs edge to edge (Decisions Log 49).
     <div className="screen relative">
-      <div className="absolute inset-0">
+      <div className="screen-bleed">
         {/* Sized directly rather than with `absolute inset-0`: maplibre-gl.css
             sets `position: relative` on `.maplibregl-map` and loads after
             Tailwind, so absolute positioning was overridden and the container
@@ -370,7 +370,7 @@ export function WeatherMap() {
           </div>
         )}
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4">
+        <div className="bleed-safe-top pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4">
           <div className="card-floating pointer-events-auto flex gap-1 self-start rounded-pill p-1">
             {[...WEATHER_TILE_LAYERS, "off" as const].map((option) => (
               <button
@@ -464,9 +464,14 @@ export function WeatherMap() {
           </p>
         )}
 
-        {/* Sits above the floating nav rather than behind it. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-[6.5rem] p-4">
-          <p className="pointer-events-auto self-start rounded-pill bg-black/50 px-3 py-1 text-xs text-text-dim">
+        {/*
+          Pushed to the very bottom edge, below the dock rather than above it.
+          Attribution is a licence obligation, not information anyone opened the
+          app for: it has to be present and legible, and nothing more
+          (Decisions Log 96).
+        */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+          <p className="pointer-events-auto text-center text-[0.5625rem] leading-none text-text-faint/70">
             <a
               href="https://openweathermap.org/"
               target="_blank"
