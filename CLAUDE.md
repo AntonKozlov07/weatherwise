@@ -733,6 +733,30 @@ service worker keeps serving cached assets, and that already caused one round of
     its own opt-in feature, built for a reason. `NEWS_API_KEY` stays in the
     environment until instructed otherwise.
 
+106. **The expand-in-place animation is one implementation, shared.** The world
+    cards open the way the hero does, and rather than write that twice the FLIP,
+    the portal, the focus handling, Escape, the scroll lock and the drag to
+    dismiss were extracted into a hook.
+
+    Duplication would have been worse here than usual. This animation has two
+    failure modes that were both found on a device rather than by reading: a
+    release that depends on `requestAnimationFrame` alone freezes on a
+    backgrounded page, and an overlay rendered in place resolves `fixed` against
+    the route transition's transform and sizes itself to the card instead of the
+    screen. A second copy would have shipped with both.
+
+    World cards pop up rather than growing in the grid. Expanding in place
+    pushed the surrounding cards around, which reads as the layout breaking
+    rather than as something opening.
+
+107. **The glint is on every gradient surface, including the closed world
+    cards.** It is light on a surface rather than weather, so eight of them do
+    not make the grid busy the way eight sets of falling rain would, and it is
+    the one motion the closed cards carry. Travel is scaled down there, because
+    full travel on a small card reads as a wobble rather than as light. One
+    component, shared, so the numbers that make it read as light cannot drift
+    between two copies.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

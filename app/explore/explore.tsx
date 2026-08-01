@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { WorldCard } from "@/components/world-card";
 import { usePreferences } from "@/components/preferences-provider";
 import { DEFAULT_LOCATION } from "@/lib/location";
+import { useTilt } from "@/lib/hooks/use-tilt";
 import { activeLocation } from "@/lib/preferences";
 import type { OnThisDay } from "@/lib/history/on-this-day";
 import type { WorldSnapshot } from "@/lib/world/world";
@@ -36,6 +37,10 @@ export function Explore() {
   const [world, setWorld] = useState<WorldSnapshot[]>([]);
   const [history, setHistory] = useState<HistoryState | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // One tilt for the whole board, so eight cards catch the light together
+  // rather than running eight smoothing loops a frame apart.
+  const tilt = useTilt(preferences.motionEffects);
 
   const saved = activeLocation(preferences);
   const coordinates = saved
@@ -132,7 +137,12 @@ export function Explore() {
           {!loading && world.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {world.map((city) => (
-                <WorldCard key={city.id} city={city} units={preferences.units} />
+                <WorldCard
+                  key={city.id}
+                  city={city}
+                  units={preferences.units}
+                  tilt={tilt}
+                />
               ))}
             </div>
           )}

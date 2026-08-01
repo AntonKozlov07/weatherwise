@@ -553,10 +553,38 @@
     transform: scale(0.98);
   }
 
-  /* Opened, it stops being a square and takes the room its metrics need. */
-  .ww-world-card[data-open] {
-    aspect-ratio: auto;
-    grid-column: 1 / -1;
+  /*
+    The opened city. Narrower than the hero's panel and vertically centred, so
+    it reads as a smaller sibling of the same object rather than a second full
+    screen sheet.
+  */
+  .ww-world-panel {
+    top: 50%;
+    transform-origin: top left;
+    translate: 0 -50%;
+    max-width: 22rem;
+    margin-inline: auto;
+    max-height: calc(
+      100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) -
+        var(--space-8)
+    );
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: var(--elevation-floating);
+    transition:
+      transform var(--dur-slow) var(--ease-out),
+      opacity var(--dur-base) var(--ease-out);
+  }
+
+  .ww-world-open {
+    box-shadow: var(--elevation-card);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .ww-world-open:active {
+    transform: scale(0.985);
   }
 
   /* ---- Time scrubber ---------------------------------------------------- */

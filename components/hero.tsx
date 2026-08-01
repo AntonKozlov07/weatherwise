@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ShareButton } from "@/components/share-button";
@@ -19,8 +18,10 @@ import {
 } from "@/lib/format";
 import { gradientMotion } from "@/lib/gradient-motion";
 import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
+import { Glint } from "@/components/glint";
 import { firstSentence, type Advice } from "@/lib/voice/validate";
 import { useCountUp } from "@/lib/hooks/use-count-up";
+import { useExpandingPanel } from "@/lib/hooks/use-expanding-panel";
 import type { Tilt } from "@/lib/hooks/use-tilt";
 import type {
   AirQuality,
@@ -52,11 +53,6 @@ import type {
  * place the backdrop sized itself to the hero instead of the viewport, putting
  * the panel a third of the way up the screen with nothing dimmed behind it.
  */
-
-type Phase = "closed" | "opening" | "open" | "closing";
-
-/** Past this much drag, releasing dismisses rather than springs back. */
-const DISMISS_PX = 110;
 
 type Props = {
   /** Conditions at the scrubbed time, which is `current` when parked at now. */
@@ -103,126 +99,16 @@ export function Hero({
   // The collapsed card shows the opening sentence only; the whole paragraph
   // would need three lines it does not have.
   const line = firstSentence(advice.paragraph);
-  const [phase, setPhase] = useState<Phase>("closed");
-  const [drag, setDrag] = useState(0);
-
-  const heroRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const panelFocusRef = useRef<HTMLDivElement>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
-
-  const expanded = phase !== "closed";
-
-  const close = useCallback(() => {
-    setPhase((previous) => {
-      return previous === "closed" ? previous : "closing";
-    });
-  }, []);
-
-  const open = () => {
-    if (phase !== "closed") return;
-    openerRef.current = document.activeElement as HTMLElement | null;
-    // Reset here rather than on close: while closed the panel is unmounted, so
-    // the only moment the value matters is the one before it appears again.
-    setDrag(0);
-    setPhase("opening");
-  };
-
-  /**
-   * The FLIP. Runs before paint so the panel is never visible at its final
-   * size: it is transformed onto the hero's rectangle first, then released on
-   * the next frame.
-   */
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    const hero = heroRef.current;
-
-    if (!panel || !hero) return;
-    if (phase !== "opening" && phase !== "closing") return;
-
-    const from = hero.getBoundingClientRect();
-    const to = panel.getBoundingClientRect();
-
-    if (to.width === 0 || to.height === 0) return;
-
-    const transform = [
-      `translate(${from.left - to.left}px, ${from.top - to.top}px)`,
-      `scale(${from.width / to.width}, ${from.height / to.height})`,
-    ].join(" ");
-
-    if (phase === "opening") {
-      panel.style.transition = "none";
-      panel.style.transform = transform;
-      panel.style.opacity = "0.6";
-
-      const release = () => {
-        panel.style.transition = "";
-        panel.style.transform = "";
-        panel.style.opacity = "";
-        setPhase("open");
-      };
-
-      const frame = requestAnimationFrame(release);
-
-      // A backgrounded or throttled page does not run animation frames, and a
-      // panel released only by rAF stays frozen at the collapsed hero's size
-      // with no way out. The timer is the guarantee; the frame is the polish.
-      const fallback = window.setTimeout(release, 120);
-
-      return () => {
-        cancelAnimationFrame(frame);
-        window.clearTimeout(fallback);
-      };
-    }
-
-    // Closing: back onto the hero, then unmount when the motion finishes.
-    panel.style.transform = transform;
-    panel.style.opacity = "0";
-
-    const done = () => setPhase("closed");
-    panel.addEventListener("transitionend", done, { once: true });
-
-    // A transition that never fires, because the panel was hidden or motion is
-    // reduced, must not leave the overlay stuck open.
-    const fallback = window.setTimeout(done, 500);
-
-    return () => {
-      panel.removeEventListener("transitionend", done);
-      window.clearTimeout(fallback);
-    };
-  }, [phase]);
-
-  // Focus moves into the panel on open and back to the hero on close, so the
-  // expansion is navigable rather than a trap that swallows the cursor.
-  useEffect(() => {
-    // The panel itself takes focus. There is no close button to focus: it sat
-    // behind the temperature card and was unreachable, and the panel already
-    // has three ways out (the card, the backdrop, a swipe, plus Escape).
-    if (phase === "open") panelFocusRef.current?.focus();
-    if (phase === "closed") {
-      openerRef.current?.focus();
-      openerRef.current = null;
-    }
-  }, [phase]);
-
-  useEffect(() => {
-    if (!expanded) return;
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-
-    document.addEventListener("keydown", onKey);
-    // The page behind must not scroll while the panel is over it.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [expanded, close]);
-
+  const {
+    phase,
+    expanded,
+    open,
+    close,
+    sourceRef,
+    panelRef,
+    dragHandlers,
+    dragStyle,
+  } = useExpandingPanel();
 
   // The location is already named directly above this, so repeating it here
   // would waste the one line that tells you which moment you are looking at.
@@ -235,7 +121,7 @@ export function Hero({
 
   return (
     <>
-      <div ref={heroRef} className="page-gutter">
+      <div ref={sourceRef as React.RefObject<HTMLDivElement>} className="page-gutter">
         <button
           type="button"
           onClick={open}
@@ -263,42 +149,15 @@ export function Hero({
           onClick={close}
         >
           <div
-            ref={(node) => {
-              panelRef.current = node;
-              panelFocusRef.current = node;
-            }}
+            ref={panelRef}
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Conditions in detail"
             className="ww-hero-panel absolute inset-x-gutter"
-            style={{
-              transform: drag > 0 ? `translateY(${drag}px)` : undefined,
-              transition: drag > 0 ? "none" : undefined,
-            }}
+            style={dragStyle}
             onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => {
-              // Only a drag that starts on the panel body counts; a drag from a
-              // button is a mis-tap, not a dismiss.
-              if ((event.target as HTMLElement).closest("button")) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              event.currentTarget.dataset.dragStart = String(event.clientY);
-            }}
-            onPointerMove={(event) => {
-              const start = event.currentTarget.dataset.dragStart;
-              if (start === undefined) return;
-              // Downward only. Dragging up should do nothing at all.
-              setDrag(Math.max(0, event.clientY - Number(start)));
-            }}
-            onPointerUp={(event) => {
-              delete event.currentTarget.dataset.dragStart;
-              if (drag > DISMISS_PX) close();
-              else setDrag(0);
-            }}
-            onPointerCancel={(event) => {
-              delete event.currentTarget.dataset.dragStart;
-              setDrag(0);
-            }}
+            {...dragHandlers}
           >
             <span className="ww-hero-grab" aria-hidden="true" />
 
@@ -449,35 +308,6 @@ function SunArrow({ direction }: { direction: "up" | "down" }) {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-/**
- * The highlight that follows tilt. Two layers moving by different amounts, so
- * it reads as depth rather than a sticker sliding around.
- *
- * Travel is capped at 15% of the band, well short of the edges: a highlight
- * that reaches the border stops looking like light and starts looking like a
- * shape.
- */
-function Glint({ tilt }: { tilt: Tilt }) {
-  return (
-    <>
-      <span
-        className="ww-glint"
-        aria-hidden="true"
-        style={{
-          transform: `translate3d(${tilt.x * 15}%, ${tilt.y * 15}%, 0)`,
-        }}
-      />
-      <span
-        className="ww-glint ww-glint-far"
-        aria-hidden="true"
-        style={{
-          transform: `translate3d(${tilt.x * -8}%, ${tilt.y * -8}%, 0)`,
-        }}
-      />
-    </>
   );
 }
 
