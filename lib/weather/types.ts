@@ -10,6 +10,10 @@
  * `location.timeZone`.
  */
 
+import type { ForecastAgreement } from "@/lib/weather/openmeteo/compare";
+
+export type { ForecastAgreement };
+
 /**
  * A condition as OpenWeatherMap reported it.
  *
@@ -191,6 +195,14 @@ export type ForecastBundle = {
   alerts: WeatherAlert[];
   /** Null where One Call publishes no minutely data for the region. */
   nowcast: Nowcast | null;
+  /**
+   * How far a second, independent forecast agrees with this one.
+   *
+   * Null where the comparison could not be made, which is not an error: the
+   * absence of a confidence signal is honest, and a fabricated one would be
+   * believed (Decisions Log 99).
+   */
+  agreement: ForecastAgreement | null;
   /** When this response was assembled, for "updated Nm ago". */
   fetchedAt: number;
 };

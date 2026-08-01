@@ -644,6 +644,50 @@ service worker keeps serving cached assets, and that already caused one round of
     against the live API rather than assumed. If nowcast frames reappear the
     timelapse extends on its own, with no change here.
 
+99. **A second forecast, used for confidence rather than for numbers.**
+    Open-Meteo runs beside OpenWeatherMap on every bundle. OpenWeatherMap stays
+    the source of everything displayed: swapping values between vendors would
+    make the app disagree with itself, and the point of a second opinion is
+    knowing how much to trust the first, not arbitrating between them.
+
+    Numbers are compared, never condition codes. Open-Meteo uses WMO codes and
+    OpenWeatherMap its own; mapping between the taxonomies would manufacture
+    disagreements that are really translation losses. Hours are aligned by local
+    clock rather than by index, because the two vendors stamp an hour
+    differently and comparing position by position would silently compare
+    different times.
+
+    Thresholds are deliberately generous. Two models never agree exactly, and
+    treating a degree as uncertainty would mark every forecast low confidence,
+    which tells the reader nothing. `high` requires no disputed hours at all: a
+    label that survives a disagreement about whether it rains at breakfast is
+    not saying anything.
+
+    Returns null where too few hours overlap. The absence of a confidence signal
+    is honest; a fabricated one is worse than none, because it would be
+    believed.
+
+    Keyless and fetched in parallel, so it costs no latency, and it resolves to
+    null rather than throwing: the signal is worth less than the forecast and
+    must never be able to take one down.
+
+100. **Historical is scaffolded, not called.** Two products, and the difference
+    is the point: the archive says what the weather was, the historical forecast
+    API says what was predicted at the time, back to 2021. Together they are
+    both halves of a forecast-accuracy measurement, which means that feature can
+    be backfilled from years of existing data rather than accumulating from
+    today.
+
+    Left uncalled because wiring it in means deciding where results live, how
+    often they refresh, and what the app does with a measured bias. Silently
+    correcting the displayed number is tempting and probably wrong: it would
+    make the app disagree with every other forecast without saying why.
+
+    Open-Meteo publishes no map tiles. The map on their site is their own
+    interface over the same point data, so there is nothing to scaffold for it;
+    the nearest equivalent is their Ensemble API, where the spread is a single
+    model's disagreement with itself.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
