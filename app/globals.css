@@ -224,6 +224,10 @@
     /* Named once and reused, so a screen that wants to bleed past the padding
        cancels exactly what was applied rather than a guess at it. */
     --safe-top: env(safe-area-inset-top);
+    /* The dock's full footprint, including the inset it carries. Scroll regions
+       pad by this so their last row clears it, which is what lets content run
+       underneath rather than stopping above it. */
+    --dock-h: calc(6.5rem + env(safe-area-inset-bottom));
 
     overflow-x: hidden;
     overflow-y: auto;
@@ -251,7 +255,14 @@
   }
 
   /* A screen inside the shell. Fills what is left and never grows past it. */
+  /*
+    Every screen fills the display and is the positioning context for the dock,
+    which floats over it. Content therefore runs to the bottom edge and scrolls
+    beneath the bar instead of stopping above it, which is what left a dead
+    strip under the dock on Home and Explore (Decisions Log 98).
+  */
   .screen {
+    position: relative;
     display: flex;
     min-height: 0;
     flex: 1 1 0%;
@@ -480,9 +491,22 @@
      cards, which made it read as a different app bolted on (Decisions Log 74). */
 
   .ww-dock {
+    /* Floated over the screen rather than sitting in its flow, so whatever is
+       behind it reaches the bottom edge. */
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 20;
     /* A floor rather than the raw inset: where the browser reports 0, the dock
        would otherwise sit flush against the bottom edge. */
     padding-bottom: max(env(safe-area-inset-bottom), var(--space-2));
+    /* The bar catches taps; the padding around it does not, so a swipe that
+       lands beside it still reaches the content underneath. */
+    pointer-events: none;
+  }
+
+  .ww-dock > * {
+    pointer-events: auto;
   }
 
   .ww-tab {

@@ -131,7 +131,7 @@ export function Explore() {
         label="Scroll for more"
       />
 
-      <div ref={listRef} className="screen-scroll page-gutter relative py-5">
+      <div ref={listRef} className="screen-scroll page-gutter relative pt-5 pb-[var(--dock-h)]">
         {state.status === "loading" && (
           <ul className="flex flex-col gap-3">
             {Array.from({ length: 5 }, (_, index) => (

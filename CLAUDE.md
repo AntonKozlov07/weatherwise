@@ -637,6 +637,22 @@ service worker keeps serving cached assets, and that already caused one round of
     against the live API rather than assumed. If nowcast frames reappear the
     timelapse extends on its own, with no change here.
 
+98. **Every screen fills the display and the dock floats over it.** The dock sat
+    in the flow, so each screen's content stopped above it and the strip below
+    was dead. It is now positioned against the screen, which is itself the full
+    height of the shell's content box, and scroll regions pad by `--dock-h` so
+    their last row still clears the bar. Content runs underneath rather than
+    ending at it, which is the difference between a bar that floats and a bar
+    that is a wall.
+
+    The dock's padding does not catch taps, only the bar itself does, so a
+    gesture landing beside it still reaches what is behind.
+
+    Verified by simulating the device's insets consistently, in the dock and in
+    `--dock-h` together. Injecting the inset on only one of them produced a
+    22px overlap that was purely an artefact of the measurement, and would have
+    sent me fixing working code.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
