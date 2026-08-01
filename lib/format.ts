@@ -39,13 +39,24 @@ export function formatHour(time: number, timeZone: string): string {
     .toLowerCase();
 }
 
-/** "9:41 PM", for sunrise, sunset, and the moon rows. */
+/**
+ * "9:41 PM", for sunrise, sunset, and the moon rows.
+ *
+ * en-CA renders the period as "p.m.", lowercase and with stops, which is the
+ * one piece of type in the app that was not fully capitalised. Normalised here
+ * rather than at each call site, so nothing downstream has to remember to do it
+ * (Decisions Log 92).
+ */
 export function formatTime(time: number, timeZone: string): string {
   return formatter(timeZone, {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(time);
+  })
+    .format(time)
+    .replace(/\s*([ap])\.?\s*m\.?/i, (_match, meridiem: string) =>
+      ` ${meridiem.toUpperCase()}M`,
+    );
 }
 
 /**
@@ -84,6 +95,27 @@ export function formatDayName(
   if (dayKey.format(time) === dayKey.format(now)) return "Today";
 
   return formatter(timeZone, { weekday: "long" }).format(time);
+}
+
+/**
+ * A compact day label: "Today", or "Mon".
+ *
+ * Exists because call sites were slicing `formatDayName` to three characters,
+ * which renders "Today" as "Tod". Abbreviating is the formatter's job, not the
+ * caller's (Decisions Log 92).
+ */
+export function formatDayShort(
+  time: number,
+  timeZone: string,
+  now: number = Date.now(),
+): string {
+  const full = formatDayName(time, timeZone, now);
+
+  // Case is left to the caller. On the timeline this sits in .type-label and
+  // comes out as MON; in a sentence it reads as Mon, which is what it should.
+  return full === "Today"
+    ? full
+    : formatter(timeZone, { weekday: "short" }).format(time);
 }
 
 export function celsiusToFahrenheit(celsius: number): number {

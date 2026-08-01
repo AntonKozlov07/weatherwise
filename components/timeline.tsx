@@ -5,7 +5,7 @@ import { memo } from "react";
 import { WeatherIcon } from "@/components/weather-icon";
 import { Temperature } from "@/components/temperature";
 import {
-  formatDayName,
+  formatDayShort,
   formatHour,
   formatTimeRounded,
   type Units,
@@ -230,7 +230,7 @@ function DayRow({
   return (
     <>
       <span className="type-label w-12 shrink-0 truncate text-2xs">
-        {formatDayName(row.time, timeZone, now).slice(0, 3)}
+        {formatDayShort(row.time, timeZone, now)}
       </span>
 
       <WeatherIcon condition={row.condition} size={26} className="shrink-0" />
@@ -274,8 +274,8 @@ function SunRow({
       {/* The hour alone said "8PM" for a sunset at 8:41, which is the one row
           on the timeline where the minutes are the point. Rounded to ten, to
           match the card and because the exact minute is false precision. */}
-      <span className="w-12 shrink-0 text-2xs tabular-nums text-[color:var(--sun)]">
-        {formatTimeRounded(row.time, timeZone).replace(/\s?([ap])\.?m\.?/i, "$1m")}
+      <span className="type-label w-14 shrink-0 text-2xs tabular-nums text-[color:var(--sun)]">
+        {formatTimeRounded(row.time, timeZone)}
       </span>
 
       <span

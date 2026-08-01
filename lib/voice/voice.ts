@@ -67,7 +67,6 @@ function whenPhrase(hoursAhead: number, fromHour: number): string {
   if (at >= 5 && at < 12) return `around ${at}am`;
   if (at === 0) return "around midnight";
   if (at > 12) return `around ${at - 12}pm`;
-  if (at === 12) return "around noon";
 
   return `in ${hoursAhead} hours`;
 }

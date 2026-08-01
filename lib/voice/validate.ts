@@ -78,8 +78,17 @@ function allowedNumbers(digest: VoiceDigest): Set<number> {
 
 /** One field. Returns the cleaned string, or the reason it was rejected. */
 function checkField(raw: string, allowed: Set<number>): string | { reason: string } {
-  // Models like to wrap copy in quotes even when told not to.
-  const text = raw.trim().replace(/^["'“”]+|["'“”]+$/g, "").trim();
+  // Models like to wrap copy in quotes even when told not to. The meridiem is
+  // upper cased here as well: the prompt cannot be relied on for typography,
+  // and a generated "3pm" beside a rendered "3PM" is the inconsistency this
+  // whole pass exists to remove.
+  const text = raw
+    .trim()
+    .replace(/^["'“”]+|["'“”]+$/g, "")
+    .replace(/(\d)\s*([ap])\.?\s*m\.?/gi, (_m, digit: string, meridiem: string) =>
+      `${digit}${meridiem.toUpperCase()}M`,
+    )
+    .trim();
 
   if (text.length === 0) return { reason: "empty" };
   if (text.length > MAX_LENGTH) return { reason: "too long" };

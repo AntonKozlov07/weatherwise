@@ -584,6 +584,34 @@ service worker keeps serving cached assets, and that already caused one round of
     shorter path, and the new location is switched to immediately, because
     adding a place and then having to tap it as well is a step nobody wants.
 
+92. **Case is decided by the role, not applied everywhere.** Short-form labels
+    are upper case: day abbreviations and the meridiem. Prose is not, because
+    "rain around 3PM" inside a sentence is shouting. Most labels get there
+    through `.type-label`, which already capitalises, so `formatHour` and
+    `formatDayShort` stay lower case at the source and only `formatTime`
+    normalises, since en-CA renders "p.m." with stops and that was the one form
+    no class could fix.
+
+    `formatDayShort` exists because call sites were slicing the full day name to
+    three characters, which rendered "Today" as "Tod". Abbreviating is the
+    formatter's job, not the caller's. Found by a test written for the casing
+    pass, not by looking.
+
+93. **The drawer opens onto its own name.** The safe-area inset left a band of
+    empty surface above the first line on a phone with a notch. Filled with the
+    mark and wordmark rather than by closing the gap, since the space exists
+    because of the hardware: a drawer that opens onto its own identity reads as
+    deliberate where an empty strip reads as a mistake.
+
+94. **Prompt caching is not used, and adding it would cost more.** Haiku 4.5
+    requires 4,096 tokens before anything is cacheable; the system prompt is
+    around 250. `cache_control` on it would be silently ignored, with no error
+    and no caching. Padding the prompt to qualify would mean paying for 4,096
+    tokens on every call, and since calls are roughly hourly the five-minute
+    window would expire between them, making each one a cache write at 1.25x.
+    Roughly twenty times the current cost. The response cache keyed by weather
+    digest is what actually removes the repeat calls, and it already exists.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

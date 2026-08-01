@@ -86,8 +86,30 @@ export function AppHeader({ locationName }: { locationName?: string }) {
             aria-label="Main menu"
             className="relative flex h-full w-72 max-w-[80%] flex-col gap-1 overflow-y-auto bg-surface p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
           >
-            <p className="type-heading mb-4 text-lg">
-              {locationName ?? "WeatherWise"}
+            {/*
+              The drawer opens below the status bar, and on a phone with a
+              notch the inset left a band of empty surface above the first
+              line. Filled with the mark and the wordmark rather than by
+              closing the gap: the space is there because of the hardware, and
+              a drawer that opens onto its own name reads as deliberate where
+              an empty strip reads as a mistake (Decisions Log 93).
+            */}
+            <div className="mb-5 flex items-center gap-3">
+              <Image
+                src="/brand/logo-mark-thick.svg"
+                alt=""
+                width={26}
+                height={26}
+                className="shrink-0 opacity-80"
+              />
+              <span className="type-wordmark text-sm">WeatherWise</span>
+            </div>
+
+            {locationName && (
+              <p className="type-label mb-1 text-2xs">Showing</p>
+            )}
+            <p className="type-heading mb-5 text-lg">
+              {locationName ?? "Weather, at a glance"}
             </p>
 
             <Link
