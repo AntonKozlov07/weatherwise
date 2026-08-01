@@ -60,7 +60,14 @@ function LoadedHome({
 
   // Owned here rather than in the hero, so there is one line per screen and the
   // request is not repeated by every component that wants to show it.
-  const advice = useVoiceLine(bundle.current, bundle.hourly, bundle.location);
+  const advice = useVoiceLine(
+    bundle.current,
+    bundle.hourly,
+    bundle.location,
+    // Model agreement rides into the wording rather than onto the screen as a
+    // badge, so a hedged day reads as a hedged sentence (Decisions Log 99).
+    bundle.agreement?.confidence ?? null,
+  );
 
   const rows = useMemo(
     () =>

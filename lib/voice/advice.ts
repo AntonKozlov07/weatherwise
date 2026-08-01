@@ -71,3 +71,27 @@ export function activityAdvice(digest: VoiceDigest): string {
 
   return "Fine for a walk or an easy run.";
 }
+
+/**
+ * The deterministic paragraph.
+ *
+ * Composed from the three rules engines rather than written separately, so the
+ * offline version is the same shape as the generated one: three sentences, same
+ * order, same job. A fallback that renders as a stub would announce itself
+ * (Decisions Log 104).
+ */
+export function adviceParagraph(
+  line: string,
+  digest: VoiceDigest,
+  confidence: VoiceDigest["confidence"] = null,
+): string {
+  const sentences = [line, wearAdvice(digest), activityAdvice(digest)];
+
+  // The hedge the generated version gets through its prompt. Stated plainly
+  // here, since a rules engine has no way to weave it in.
+  if (confidence === "low") {
+    sentences.push("Forecasts disagree about today, so treat it loosely.");
+  }
+
+  return sentences.join(" ");
+}

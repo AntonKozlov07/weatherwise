@@ -1,93 +1,81 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
-import { ScrollHint } from "@/components/scroll-hint";
-import { ErrorState } from "@/components/skeletons";
-import {
-  CATEGORY_LABELS,
-  NEWS_CATEGORIES,
-  type Article,
-  type NewsCategory,
-} from "@/lib/news/types";
-import type { ErrorBody } from "@/lib/weather/errors";
+import { WorldCard } from "@/components/world-card";
+import { usePreferences } from "@/components/preferences-provider";
+import { DEFAULT_LOCATION } from "@/lib/location";
+import { activeLocation } from "@/lib/preferences";
+import type { OnThisDay } from "@/lib/history/on-this-day";
+import type { WorldSnapshot } from "@/lib/world/world";
 
-type State =
-  | { status: "loading" }
-  // `fetchedAt` is captured when the articles land, so the relative times are
-  // computed against a fixed moment rather than a ticking clock in render.
-  | { status: "ready"; articles: Article[]; fetchedAt: number }
-  | { status: "error"; message: string };
+/**
+ * Explore.
+ *
+ * Three things about weather that are not the forecast: what this date has done
+ * before, what the rest of the world is doing now, and something worth knowing.
+ * It replaced a news feed, which was in the app because the original brief said
+ * so rather than because a weather app needs one (Decisions Log 105).
+ *
+ * One continuous scroll rather than sections behind a control. There are three
+ * things, and a control to choose between three things is more interface than
+ * the content justifies.
+ *
+ * Every record on this screen is computed from observed measurements. Nothing
+ * here is recalled by a model, which is what makes stating it outright safe.
+ */
 
-function relativeTime(published: number | null, now: number): string {
-  if (published === null) return "";
-
-  const minutes = Math.max(0, Math.round((now - published) / 60_000));
-  if (minutes < 60) return `${Math.max(1, minutes)}m ago`;
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  return `${Math.round(hours / 24)}d ago`;
-}
-
-function ArticleSkeleton() {
-  return (
-    <li className="ww-article flex gap-4 py-4">
-      <div className="flex-1">
-        <div className="ww-shimmer h-4 w-full rounded-inner" />
-        <div className="ww-shimmer mt-2 h-4 w-3/4 rounded-inner" />
-        <div className="ww-shimmer mt-3 h-3 w-1/2 rounded-inner" />
-      </div>
-      <div className="ww-shimmer h-16 w-16 shrink-0 rounded-inner" />
-    </li>
-  );
-}
+type HistoryState = {
+  history: OnThisDay | null;
+  facts: string[];
+};
 
 export function Explore() {
-  const [category, setCategory] = useState<NewsCategory>("world");
-  const [state, setState] = useState<State>({ status: "loading" });
-  const [reloadKey, setReloadKey] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
+  const preferences = usePreferences();
+  const [world, setWorld] = useState<WorldSnapshot[]>([]);
+  const [history, setHistory] = useState<HistoryState | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const saved = activeLocation(preferences);
+  const coordinates = saved
+    ? { latitude: saved.latitude, longitude: saved.longitude }
+    : DEFAULT_LOCATION;
+
+  const key = `${coordinates.latitude},${coordinates.longitude}`;
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
 
-    // Everything that sets state lives inside this async body. Calling setState
-    // synchronously in an effect cascades an extra render on every tab change.
-    void (async () => {
-      setState({ status: "loading" });
+    // Fetched together but failing apart: the world board going down must not
+    // take the history with it, and neither is worth an error screen.
+    Promise.all([
+      fetch("/api/world")
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
+      fetch(`/api/history?lat=${coordinates.latitude}&lon=${coordinates.longitude}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
+    ]).then(([worldPayload, historyPayload]) => {
+      if (cancelled) return;
 
-      try {
-        const response = await fetch(`/api/news?category=${category}`, {
-          signal: controller.signal,
-        });
+      setWorld(worldPayload?.cities ?? []);
+      setHistory(
+        historyPayload
+          ? {
+              history: historyPayload.history ?? null,
+              facts: historyPayload.facts ?? [],
+            }
+          : null,
+      );
+      setLoading(false);
+    });
 
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as ErrorBody | null;
-          setState({
-            status: "error",
-            message: body?.error.message ?? "Could not load the news.",
-          });
-          return;
-        }
-
-        const body = (await response.json()) as { articles: Article[] };
-        setState({
-          status: "ready",
-          articles: body.articles,
-          fetchedAt: Date.now(),
-        });
-      } catch {
-        if (!controller.signal.aborted) {
-          setState({ status: "error", message: "Could not load the news." });
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [category, reloadKey]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return (
     <div className="screen relative">
@@ -95,108 +83,64 @@ export function Explore() {
         <h1 className="screen-title">Explore</h1>
       </header>
 
-      <div
-        role="tablist"
-        aria-label="News categories"
-        className="mt-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        <div className="page-gutter flex gap-5">
-          {NEWS_CATEGORIES.map((candidate) => {
-            const selected = candidate === category;
+      <div className="screen-scroll page-gutter flex flex-col gap-8 pb-6 pt-5">
+        <section className="ww-rise flex flex-col gap-3">
+          <h2 className="type-label text-2xs">
+            On this day{saved ? ` in ${saved.name}` : ""}
+          </h2>
 
-            return (
-              <button
-                key={candidate}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setCategory(candidate)}
-                /* Underline rather than a filled pill. Pills were the one
-                   remaining piece of the old chrome; the home screen dropped
-                   them when the segmented control went, and two different
-                   selection idioms in one app reads as two apps. */
-                className="ww-tab type-label shrink-0 px-1 pb-2 pt-1 text-2xs"
-                data-selected={selected || undefined}
-              >
-                {CATEGORY_LABELS[candidate]}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          {loading && <div className="ww-shimmer h-28 rounded-card" />}
 
-      <ScrollHint
-        targetRef={listRef}
-        direction="vertical"
-        label="Scroll for more"
-      />
+          {!loading && history?.history && (
+            <>
+              <ul className="flex flex-col gap-2">
+                {history.facts.map((fact) => (
+                  <li
+                    key={fact}
+                    className="rounded-card bg-surface px-4 py-3 text-sm leading-relaxed text-text-dim"
+                  >
+                    {fact}
+                  </li>
+                ))}
+              </ul>
 
-      <div ref={listRef} className="screen-scroll page-gutter relative py-5">
-        {state.status === "loading" && (
-          <ul className="flex flex-col gap-3">
-            {Array.from({ length: 5 }, (_, index) => (
-              <ArticleSkeleton key={index} />
-            ))}
-          </ul>
-        )}
+              <p className="type-label text-2xs text-text-faint">
+                Measured, {history.history.span.from} to {history.history.span.to}
+              </p>
+            </>
+          )}
 
-        {state.status === "error" && (
-          <ErrorState
-            message={state.message}
-            onRetry={() => setReloadKey((current) => current + 1)}
-          />
-        )}
+          {!loading && !history?.history && (
+            <p className="text-sm text-text-dim">No records for this date here yet.</p>
+          )}
+        </section>
 
-        {state.status === "ready" && state.articles.length === 0 && (
-          <p className="py-8 text-base text-text-dim">
-            Nothing published in this category right now.
-          </p>
-        )}
+        <section
+          className="ww-rise flex flex-col gap-3"
+          style={{ "--rise-delay": "60ms" } as React.CSSProperties}
+        >
+          <h2 className="type-label text-2xs">Around the world</h2>
 
-        {state.status === "ready" && state.articles.length > 0 && (
-          <ul key={category} className="flex flex-col">
-            {state.articles.map((article, index) => (
-              <li
-                key={article.id}
-                className="ww-rise"
-                style={{ "--rise-delay": `${Math.min(index, 8) * 40}ms` } as React.CSSProperties}
-              >
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ww-article flex gap-4 py-4"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-base leading-snug">
-                      {article.title}
-                    </span>
-                    {/* Source and age as a label, the same treatment the
-                        timeline gives a row's time. */}
-                    <span className="type-label mt-2 block truncate text-2xs">
-                      {article.source}
-                      {article.publishedAt !== null &&
-                        ` · ${relativeTime(article.publishedAt, state.fetchedAt)}`}
-                    </span>
-                  </span>
+          {loading && (
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: 8 }, (_, index) => (
+                <div key={index} className="ww-shimmer aspect-square rounded-card" />
+              ))}
+            </div>
+          )}
 
-                  {article.imageUrl && (
-                    /* Remote thumbnails from arbitrary news domains, so the
-                       Next image optimiser is bypassed rather than allow-listing
-                       every publisher's CDN. */
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={article.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      className="h-16 w-16 shrink-0 rounded-inner object-cover"
-                    />
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+          {!loading && world.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {world.map((city) => (
+                <WorldCard key={city.id} city={city} units={preferences.units} />
+              ))}
+            </div>
+          )}
+
+          {!loading && world.length === 0 && (
+            <p className="text-sm text-text-dim">Could not reach the world board.</p>
+          )}
+        </section>
       </div>
 
       <BottomNav />

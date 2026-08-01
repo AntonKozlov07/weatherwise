@@ -138,8 +138,8 @@ export function About() {
               OpenWeatherMap. Map tiles are from OpenWeatherMap and CARTO, built
               on OpenStreetMap data, &copy; OpenStreetMap contributors. Weather
               icons are Meteocons by Bas Milius, used under the MIT licence.
-              News headlines come from a third-party news provider and link to
-              the original publisher.
+              Historical records and a second forecast, used to gauge
+              confidence, come from Open-Meteo.
             </p>
             <p>
               Forecasts are estimates. Severe weather alerts are reproduced from

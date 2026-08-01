@@ -535,6 +535,30 @@
     opacity: 0.6;
   }
 
+  /* ---- World board -------------------------------------------------------
+     Square by design: a grid of squares reads as a set of places, where a grid
+     of rectangles reads as a list that happens to have two columns. */
+
+  .ww-world-card {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--elevation-card);
+    transition:
+      transform var(--dur-fast) var(--ease-out),
+      background-image var(--dur-base) var(--ease-in-out);
+  }
+
+  .ww-world-card:active {
+    transform: scale(0.98);
+  }
+
+  /* Opened, it stops being a square and takes the room its metrics need. */
+  .ww-world-card[data-open] {
+    aspect-ratio: auto;
+    grid-column: 1 / -1;
+  }
+
   /* ---- Time scrubber ---------------------------------------------------- */
 
   .ww-scrub-track {

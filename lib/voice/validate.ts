@@ -15,7 +15,8 @@ import type { VoiceDigest } from "@/lib/voice/prompt";
  * which wrong numbers are acceptable.
  */
 
-const MAX_LENGTH = 160;
+/** Three sentences. Long enough for the paragraph, short enough to stay a card. */
+const MAX_LENGTH = 340;
 
 /** Words that mean the model narrated instead of writing the copy. */
 const BANNED = [
@@ -30,7 +31,12 @@ const BANNED = [
   "forecast:",
 ];
 
-export type Advice = { line: string; wear: string; activity: string };
+/**
+ * One paragraph of three sentences: what today is like, what to wear, what it
+ * means for being outside. Replaced three separate fields, which rendered as a
+ * form rather than as somebody telling you about the day (Decisions Log 104).
+ */
+export type Advice = { paragraph: string };
 
 export type Validation =
   | { ok: true; advice: Advice }
@@ -109,12 +115,12 @@ function checkField(raw: string, allowed: Set<number>): string | { reason: strin
 }
 
 /**
- * Checks a whole response. All three fields, or none of them.
+ * Checks the response.
  *
- * A response where the clothing advice is sound but the line invents a
- * temperature is not a partial success. It means the model was willing to make
- * something up, and the other fields have no better claim to being right than
- * the one that was caught.
+ * A paragraph where the clothing advice is sound but the first sentence invents
+ * a temperature is not a partial success: it means the model was willing to make
+ * something up, and the rest has no better claim to being right than the part
+ * that was caught. So it passes whole or not at all.
  */
 export function validateAdvice(raw: unknown, digest: VoiceDigest): Validation {
   if (typeof raw !== "object" || raw === null) {
@@ -122,22 +128,20 @@ export function validateAdvice(raw: unknown, digest: VoiceDigest): Validation {
   }
 
   const candidate = raw as Partial<Advice>;
-  const allowed = allowedNumbers(digest);
-  const checked: Partial<Advice> = {};
 
-  for (const field of ["line", "wear", "activity"] as const) {
-    const value = candidate[field];
-
-    if (typeof value !== "string") return { ok: false, reason: `${field} missing` };
-
-    const result = checkField(value, allowed);
-
-    if (typeof result !== "string") {
-      return { ok: false, reason: `${field}: ${result.reason}` };
-    }
-
-    checked[field] = result;
+  if (typeof candidate.paragraph !== "string") {
+    return { ok: false, reason: "paragraph missing" };
   }
 
-  return { ok: true, advice: checked as Advice };
+  const result = checkField(candidate.paragraph, allowedNumbers(digest));
+
+  if (typeof result !== "string") return { ok: false, reason: result.reason };
+
+  return { ok: true, advice: { paragraph: result } };
+}
+
+/** The first sentence, for the collapsed card. */
+export function firstSentence(paragraph: string): string {
+  const match = paragraph.match(/^[^.!?]+[.!?]/);
+  return (match ? match[0] : paragraph).trim();
 }

@@ -1,5 +1,5 @@
 import { buildDigest, digestKey, SYSTEM_PROMPT, userPrompt } from "@/lib/voice/prompt";
-import { activityAdvice, wearAdvice } from "@/lib/voice/advice";
+import { adviceParagraph } from "@/lib/voice/advice";
 import { validateAdvice, type Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
 import type { CurrentConditions, HourlyPoint } from "@/lib/weather/types";
@@ -74,6 +74,8 @@ type Body = {
   timeZone?: string;
   latitude?: number;
   longitude?: number;
+  /** Model agreement, computed with the forecast and passed through. */
+  confidence?: "high" | "moderate" | "low" | null;
 };
 
 async function generate(digest: ReturnType<typeof buildDigest>): Promise<string | null> {
@@ -142,18 +144,20 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: { message: "Missing forecast." } }, { status: 400 });
   }
 
-  const digest = buildDigest(current, hourly, timeZone);
+  const digest = buildDigest(current, hourly, timeZone, body.confidence ?? null);
 
   // The deterministic version is computed first, so there is always something
   // to return and the generated path never has to handle its own failure.
   const fallback: Advice = {
-    line: voiceLine({ current, hourly, timeZone }),
-    wear: wearAdvice(digest),
-    activity: activityAdvice(digest),
+    paragraph: adviceParagraph(
+      voiceLine({ current, hourly, timeZone }),
+      digest,
+      digest.confidence,
+    ),
   };
 
   try {
-    const key = digestKey(digest, body.latitude ?? 0, body.longitude ?? 0);
+    const key = `${digestKey(digest, body.latitude ?? 0, body.longitude ?? 0)}|${digest.confidence ?? "-"}`;
 
     const hit = cached(key);
     if (hit) return Response.json(hit);

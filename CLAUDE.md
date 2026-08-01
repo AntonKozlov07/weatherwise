@@ -688,6 +688,51 @@ service worker keeps serving cached assets, and that already caused one round of
     the nearest equivalent is their Ensemble API, where the spread is a single
     model's disagreement with itself.
 
+101. **WMO codes are translated to OpenWeatherMap codes, not given their own
+    system.** Open-Meteo reports the WMO standard and every piece of theming,
+    bucketing, icon selection and labelling here is keyed to OWM's numbering.
+    One translation table means world cities reuse all of it unchanged rather
+    than growing a parallel implementation that would drift.
+
+102. **The world board is eight fixed cities, coloured by climate.** Chosen for
+    contrast rather than importance: at any hour some are in a season the others
+    are not, and that difference is the point. Closed cards are coloured by
+    climate alone, not condition and not temperature, because eight cards each
+    reacting to their own weather is a fruit salad. Condition and the weather
+    animations take over once a card is opened, where there is only one of them.
+    Nothing animates in the grid, which is what keeps eight cards cheap.
+
+    Climate tags are hand-written per city. Eight values that never change are
+    honest as data; classifying them at runtime would be logic that can be wrong
+    about a fact already known.
+
+103. **On this day is computed from measurements, never recalled.** A record
+    that comes out of arithmetic over observed data cannot be a plausible
+    invention, which is what makes stating it outright safe.
+
+    Requests are batched five at a time. Twenty at once returned five years: not
+    rate limiting, and every year fetched cleanly alone, but they did not all
+    land inside the timeout and a dropped year is silent. The screen then showed
+    a twenty-year record built from five, and worse, claimed today was a record
+    when a wider sample showed it plainly was not. A silent gap in a data set is
+    not missing information, it is wrong information.
+
+104. **One paragraph, not three labelled fields.** The card carried a line, a
+    clothing note and an activity note as separate rows, which read as a form.
+    Three sentences in a paragraph read as somebody telling you about the day.
+    The collapsed card shows the first sentence only. The deterministic fallback
+    composes the same three sentences from the rules engines, so offline gets a
+    paragraph rather than a stub that would announce itself.
+
+    The activity verdict rows are gone from the card. `lib/activities` stays in
+    the tree unused, by request.
+
+105. **News is removed entirely.** It was in the app because the original brief
+    said so, not because a weather app needs one. Explore keeps its slot and its
+    icon and becomes history, the world board and facts. News returns later as
+    its own opt-in feature, built for a reason. `NEWS_API_KEY` stays in the
+    environment until instructed otherwise.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

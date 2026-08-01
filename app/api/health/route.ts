@@ -61,7 +61,6 @@ async function probeTiles(): Promise<Record<string, unknown>> {
 export async function GET(): Promise<Response> {
   const keys = {
     OPENWEATHER_API_KEY: Boolean(process.env.OPENWEATHER_API_KEY),
-    NEWS_API_KEY: Boolean(process.env.NEWS_API_KEY),
   };
 
   let weather: Record<string, unknown>;

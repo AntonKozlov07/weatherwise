@@ -27,6 +27,8 @@ export type VoiceDigest = {
   hoursToDry: number | null;
   wetHours: number;
   heaviestMmH: number;
+  /** How far a second, independent model agrees. Null where not compared. */
+  confidence: "high" | "moderate" | "low" | null;
 };
 
 const WET_MM_H = 0.2;
@@ -43,6 +45,7 @@ export function buildDigest(
   current: CurrentConditions,
   hourly: HourlyPoint[],
   timeZone: string,
+  confidence: VoiceDigest["confidence"] = null,
 ): VoiceDigest {
   const window_ = hourly.slice(0, 12);
   const temps = window_.map((hour) => hour.temperature);
@@ -71,6 +74,7 @@ export function buildDigest(
     heaviestMmH:
       Math.round(window_.reduce((max, hour) => Math.max(max, hour.precipitation), 0) * 10) /
       10,
+    confidence,
   };
 }
 
@@ -103,25 +107,29 @@ export function digestKey(digest: VoiceDigest, latitude: number, longitude: numb
  * here is paid for repeatedly, and the examples do more work than instructions
  * would (Decisions Log 90).
  *
- * Three fields in one response rather than three calls: the model has already
- * read the forecast, and asking it three times would triple the input tokens to
- * re-state what it was just told.
+ * One paragraph of exactly three sentences rather than three separate fields.
+ * The card used to carry a line, a clothing note and an activity note as three
+ * labelled rows, which read as a form. A paragraph reads as somebody telling
+ * you about the day (Decisions Log 104).
  */
-export const SYSTEM_PROMPT = `You write copy for a weather app. Reply with JSON only:
-{"line":"...","wear":"...","activity":"..."}
+export const SYSTEM_PROMPT = `You write one paragraph for a weather app's home screen. Reply with JSON only:
+{"paragraph":"..."}
 
-line: one sentence on what the day is actually like. Dry, specific, a little wry.
-wear: what to put on. Concrete garments, not "dress warmly".
-activity: a sport or outdoor activity that suits these conditions, and when.
+Exactly three sentences, in this order:
+1. What today is actually like, and whether that is good or bad.
+2. What to wear. Concrete garments, not "dress warmly".
+3. What the conditions mean for being outside, and when.
+
+Voice: a person who knows the area telling you about the day. Dry, specific, a little wry. Never cheerful, never a forecast read aloud.
 
 Rules:
 - Use ONLY numbers present in the data. Never state a temperature, time or measurement you were not given.
 - Never invent rain, wind or conditions not in the data.
-- Each field under 120 characters. No emoji, no exclamation marks, no greetings.
+- Under 300 characters total. No emoji, no exclamation marks, no greetings.
 - Do not mention the data, the app, or yourself.
 
 Example:
-{"line":"Cool start, warming fast. Jacket now, gone by noon.","wear":"Light jacket over a t-shirt, you will want it off by lunch.","activity":"Good morning for a run before it warms up."}`;
+{"paragraph":"Cool start, warming fast, and the kind of day worth getting outside for. Light jacket over a t-shirt, though you will want it off by lunch. Best run is the morning, before it climbs into the twenties."}`;
 
 export function userPrompt(digest: VoiceDigest): string {
   const lines = [
@@ -137,6 +145,13 @@ export function userPrompt(digest: VoiceDigest): string {
     lines.push(`Raining, stops in ${digest.hoursToDry}h`);
   } else {
     lines.push("No rain in the next 12h");
+  }
+
+  // Two independent models disagreeing is worth a hedge in the wording rather
+  // than a badge on the screen, so the confidence arrives as a fact about the
+  // forecast and the model chooses how to say it (Decisions Log 99).
+  if (digest.confidence === "low") {
+    lines.push("Note: two forecast models disagree about today. Hedge accordingly.");
   }
 
   return lines.join("\n");

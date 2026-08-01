@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { activityAdvice, wearAdvice } from "@/lib/voice/advice";
+import { adviceParagraph } from "@/lib/voice/advice";
 import { buildDigest } from "@/lib/voice/prompt";
 import type { Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
@@ -24,13 +24,16 @@ export function useVoiceLine(
   current: CurrentConditions,
   hourly: HourlyPoint[],
   location: LocationSummary,
+  confidence: "high" | "moderate" | "low" | null = null,
 ): Advice {
-  const digest = buildDigest(current, hourly, location.timeZone);
+  const digest = buildDigest(current, hourly, location.timeZone, confidence);
 
   const deterministic: Advice = {
-    line: voiceLine({ current, hourly, timeZone: location.timeZone }),
-    wear: wearAdvice(digest),
-    activity: activityAdvice(digest),
+    paragraph: adviceParagraph(
+      voiceLine({ current, hourly, timeZone: location.timeZone }),
+      digest,
+      confidence,
+    ),
   };
 
   // The generated line is stored with the key it belongs to, rather than as a
@@ -43,7 +46,7 @@ export function useVoiceLine(
 
   // Keyed on the observation, so a refresh that returns the same reading does
   // not trigger another round trip.
-  const key = `${location.latitude},${location.longitude},${current.observedAt}`;
+  const key = `${location.latitude},${location.longitude},${current.observedAt},${confidence ?? "-"}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -59,20 +62,14 @@ export function useVoiceLine(
         timeZone: location.timeZone,
         latitude: location.latitude,
         longitude: location.longitude,
+        confidence,
       }),
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: Partial<Advice> | null) => {
-        if (cancelled || !payload?.line || !payload.wear || !payload.activity) return;
+        if (cancelled || !payload?.paragraph) return;
 
-        setGenerated({
-          key,
-          advice: {
-            line: payload.line,
-            wear: payload.wear,
-            activity: payload.activity,
-          },
-        });
+        setGenerated({ key, advice: { paragraph: payload.paragraph } });
       })
       .catch(() => {
         // Offline, or the route is unavailable. The deterministic line stands.

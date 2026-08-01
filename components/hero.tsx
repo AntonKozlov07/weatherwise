@@ -7,7 +7,6 @@ import { ShareButton } from "@/components/share-button";
 import { Temperature } from "@/components/temperature";
 import { WeatherFX, WindFX } from "@/components/weather-fx";
 import { WeatherIcon } from "@/components/weather-icon";
-import { topAnswers, type ActivityAnswer } from "@/lib/activities/activities";
 import {
   formatDayName,
   formatHour,
@@ -20,7 +19,7 @@ import {
 } from "@/lib/format";
 import { gradientMotion } from "@/lib/gradient-motion";
 import { nextGoldenHour, uvPeak, type GoldenHour, type UvPeak } from "@/lib/sun/golden";
-import type { Advice } from "@/lib/voice/validate";
+import { firstSentence, type Advice } from "@/lib/voice/validate";
 import { useCountUp } from "@/lib/hooks/use-count-up";
 import type { Tilt } from "@/lib/hooks/use-tilt";
 import type {
@@ -101,7 +100,9 @@ export function Hero({
   astronomy,
   advice,
 }: Props) {
-  const line = advice.line;
+  // The collapsed card shows the opening sentence only; the whole paragraph
+  // would need three lines it does not have.
+  const line = firstSentence(advice.paragraph);
   const [phase, setPhase] = useState<Phase>("closed");
   const [drag, setDrag] = useState(0);
 
@@ -222,7 +223,6 @@ export function Hero({
     };
   }, [expanded, close]);
 
-  const answers = topAnswers(current, hourly, timeZone);
 
   // The location is already named directly above this, so repeating it here
   // would waste the one line that tells you which moment you are looking at.
@@ -315,7 +315,6 @@ export function Hero({
               timeLabel={timeLabel}
               timeZone={timeZone}
               line={line}
-              answers={answers}
               active={phase === "open"}
               airQuality={airQuality}
               windGust={windGust}
@@ -490,7 +489,6 @@ function ExpandedContent({
   timeLabel,
   timeZone,
   line,
-  answers,
   active,
   advice,
   hourly,
@@ -507,7 +505,6 @@ function ExpandedContent({
   timeLabel: string;
   timeZone: string;
   line: string;
-  answers: ActivityAnswer[];
   active: boolean;
   advice: Advice;
   hourly: HourlyPoint[];
@@ -558,71 +555,41 @@ function ExpandedContent({
         hardcoded delays. Reversed on exit by the closing state.
       */}
       <p
-        className="ww-stagger mt-4 text-base leading-snug"
+        className="ww-stagger mt-4 text-base leading-relaxed"
         style={{ "--i": 0 } as React.CSSProperties}
       >
-        {line}
+        {advice.paragraph}
       </p>
 
-      <ul className="mt-4 space-y-2">
-        {answers.map((answer, index) => (
-          <li
-            key={answer.id}
-            className="ww-stagger flex items-center justify-between gap-3"
-            style={{ "--i": index + 1 } as React.CSSProperties}
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="ww-verdict" data-verdict={answer.verdict} />
-              <span className="truncate text-xs text-text-dim">{answer.label}</span>
-            </span>
-            <span className="shrink-0 text-xs">{answer.answer}</span>
-          </li>
-        ))}
-      </ul>
-
-      <ul
-        className="ww-stagger mt-4 flex flex-col gap-2"
-        style={{ "--i": answers.length + 1 } as React.CSSProperties}
-      >
-        <li className="flex gap-2 text-xs">
-          <span className="type-label w-14 shrink-0 text-2xs">Wear</span>
-          <span className="flex-1 text-text-dim">{advice.wear}</span>
-        </li>
-        <li className="flex gap-2 text-xs">
-          <span className="type-label w-14 shrink-0 text-2xs">Good for</span>
-          <span className="flex-1 text-text-dim">{advice.activity}</span>
-        </li>
-      </ul>
-
-      <SunLines golden={golden} uv={uv} timeZone={timeZone} index={answers.length + 2} />
+      <SunLines golden={golden} uv={uv} timeZone={timeZone} index={1} />
 
       <dl className="mt-5 grid grid-cols-3 gap-2">
         <Metric
           label="Feels"
           value={view.feelsLike}
           active={active}
-          index={answers.length + 1}
+          index={2}
           format={(value) => `${formatTemperature(value, units)}°`}
         />
         <Metric
           label="Humidity"
           value={view.humidity}
           active={active}
-          index={answers.length + 2}
+          index={3}
           format={(value) => `${Math.round(value)}%`}
         />
         <Metric
           label="Wind"
           value={view.windSpeed}
           active={active}
-          index={answers.length + 3}
+          index={4}
           format={(value) => formatWind(value, units)}
         />
         <Metric
           label="UV"
           value={view.uvIndex}
           active={active}
-          index={answers.length + 4}
+          index={5}
           format={(value) => String(Math.round(value))}
         />
 
@@ -635,7 +602,7 @@ function ExpandedContent({
         {airQuality && (
           <div
             className="ww-stagger rounded-inner bg-surface px-2 py-3 text-center"
-            style={{ "--i": answers.length + 5 } as React.CSSProperties}
+            style={{ "--i": 6 } as React.CSSProperties}
           >
             <dd className="text-sm">{aqiSeverity(airQuality.index)}</dd>
             <dt className="type-label mt-1 text-2xs">Air</dt>
@@ -644,7 +611,7 @@ function ExpandedContent({
 
         <div
           className="ww-stagger rounded-inner bg-surface px-2 py-3 text-center"
-          style={{ "--i": answers.length + 6 } as React.CSSProperties}
+          style={{ "--i": 7 } as React.CSSProperties}
         >
           <dd className="text-sm tabular-nums">
             {astronomy.sunset === null
@@ -660,12 +627,12 @@ function ExpandedContent({
         locationName={locationName}
         units={units}
         line={line}
-        index={answers.length + 7}
+        index={8}
       />
 
       <p
         className="ww-stagger mt-4 text-2xs text-text-faint"
-        style={{ "--i": answers.length + 5 } as React.CSSProperties}
+        style={{ "--i": 6 } as React.CSSProperties}
       >
         Observed {formatTime(current.observedAt, timeZone)}
       </p>
