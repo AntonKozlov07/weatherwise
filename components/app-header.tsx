@@ -87,32 +87,27 @@ export function AppHeader({ locationName }: { locationName?: string }) {
             className="relative flex h-full w-72 max-w-[80%] flex-col overflow-y-auto bg-surface pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
           >
             {/*
-              The header runs to the top edge and absorbs the status bar inset
-              rather than sitting below a band of empty surface. The colour is
-              the condition gradient, the same one on the hero, so the drawer is
-              tinted by the actual weather instead of carrying a decoration that
-              means nothing (Decisions Log 93).
-            */}
-            <div className="ww-drawer-head bleed-safe-top">
-              <span className="ww-drawer-aurora" aria-hidden="true" />
+              The text sits at the top of the drawer, and the drawer already
+              starts below the status bar: its overlay is fixed, but a
+              transformed ancestor makes that resolve against the shell's
+              padded box rather than the display. So no inset is applied here.
+              Adding one was what produced the band of empty surface in the
+              first place, by counting the same inset twice.
 
-              <div className="relative flex items-center gap-3">
-                <Image
-                  src="/brand/logo-mark-thick.svg"
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="shrink-0 opacity-90"
-                />
-                <span className="type-wordmark text-xs">WeatherWise</span>
-              </div>
+              Two decorations were tried in that space and both were wrong: the
+              logo alone was inert, and a gradient was noise competing with the
+              two lines that matter. It was never a slot that needed filling
+              (Decisions Log 93).
+            */}
+            <div className="px-6 pb-2 pt-5">
+              <span className="type-wordmark text-2xs text-text-faint">
+                WeatherWise
+              </span>
 
               {locationName && (
-                <p className="type-label relative mt-6 text-2xs text-[color:var(--on-band-dim)]">
-                  Showing
-                </p>
+                <p className="type-label mt-5 text-2xs">Showing</p>
               )}
-              <p className="type-heading relative mt-1 text-xl">
+              <p className="type-heading mt-1 text-xl">
                 {locationName ?? "Weather, at a glance"}
               </p>
             </div>

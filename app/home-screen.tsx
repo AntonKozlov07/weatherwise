@@ -267,10 +267,7 @@ export function HomeScreen() {
             others fit. The scroll lives here rather than on the page, so the
             header and nav stay put and nothing is clipped (Decisions Log 52).
           */}
-          <div
-            ref={scrollRef}
-            className="min-h-0 flex-1 overflow-y-auto pb-[var(--dock-h)]"
-          >
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
             {state.status === "loading" && <HomeSkeleton />}
 
             {state.status === "error" && (

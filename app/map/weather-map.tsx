@@ -494,8 +494,10 @@ export function WeatherMap() {
         </div>
       </div>
 
-      {/* Floats over the map, which now runs to every edge behind it. */}
-      <BottomNav />
+      {/* Above the map, and pushed to the bottom of the shell. */}
+      <div className="relative z-10 mt-auto">
+        <BottomNav />
+      </div>
     </div>
   );
 }

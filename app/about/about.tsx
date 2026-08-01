@@ -91,7 +91,7 @@ function Section({
 export function About() {
   return (
     <div className="screen">
-      <main className="screen-scroll ww-rise page-gutter flex flex-col gap-6 pt-2 pb-[var(--dock-h)]">
+      <main className="screen-scroll ww-rise page-gutter flex flex-col gap-6 pb-6 pt-2">
         <h1 className="screen-title">About</h1>
 
         <p className="text-sm leading-relaxed text-text-dim">

@@ -597,15 +597,22 @@ service worker keeps serving cached assets, and that already caused one round of
     formatter's job, not the caller's. Found by a test written for the casing
     pass, not by looking.
 
-93. **The drawer header runs to the top edge and carries the condition
-    gradient.** The safe-area inset left a band of empty surface above the first
-    line. A first attempt filled it with the logo alone, which was correctly
-    called boring: it occupied the space without justifying it. The header now
-    absorbs the inset itself and is painted with the same gradient as the hero,
-    plus soft blooms in the accent, so the drawer is tinted by the actual
-    weather rather than decorated with something that means nothing. Muted, not
-    vivid: it sits behind the app's name and a place name, and colour that
-    competes with them is decoration winning an argument it should not be in.
+93. **The drawer's gap was a double-counted inset, not a space needing
+    decoration.** Two attempts were made to fill it: the logo alone, which was
+    correctly called inert, and a condition gradient with drifting blooms, which
+    was noise competing with the two lines that matter. Both were rejected, and
+    both were solving the wrong problem.
+
+    The drawer's overlay is `fixed`, but a transformed ancestor makes that
+    resolve against the shell's padded box rather than the display, so it
+    already starts below the status bar. Applying the inset again inside it
+    counted the same offset twice, which is the band of empty surface. The text
+    now sits at the top with ordinary padding and nothing else.
+
+    Worth noting how close this came to shipping wrong: the offending class was
+    silently overridden by a Tailwind utility, so the gap did not reproduce
+    locally. Had the utility been removed later, the bug would have returned
+    with no obvious cause.
 
 94. **Prompt caching is not used, and adding it would cost more.** Haiku 4.5
     requires 4,096 tokens before anything is cacheable; the system prompt is
@@ -636,22 +643,6 @@ service worker keeps serving cached assets, and that already caused one round of
     thirteen past frames covering exactly two hours and nothing forward. Checked
     against the live API rather than assumed. If nowcast frames reappear the
     timelapse extends on its own, with no change here.
-
-98. **Every screen fills the display and the dock floats over it.** The dock sat
-    in the flow, so each screen's content stopped above it and the strip below
-    was dead. It is now positioned against the screen, which is itself the full
-    height of the shell's content box, and scroll regions pad by `--dock-h` so
-    their last row still clears the bar. Content runs underneath rather than
-    ending at it, which is the difference between a bar that floats and a bar
-    that is a wall.
-
-    The dock's padding does not catch taps, only the bar itself does, so a
-    gesture landing beside it still reaches what is behind.
-
-    Verified by simulating the device's insets consistently, in the dock and in
-    `--dock-h` together. Injecting the inset on only one of them produced a
-    22px overlap that was purely an artefact of the measurement, and would have
-    sent me fixing working code.
 
 Outstanding:
 

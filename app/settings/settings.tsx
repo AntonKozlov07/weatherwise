@@ -59,7 +59,7 @@ export function Settings() {
 
   return (
     <div className="screen">
-      <main className="screen-scroll ww-rise page-gutter flex flex-col gap-8 pt-2 pb-[var(--dock-h)]">
+      <main className="screen-scroll ww-rise page-gutter flex flex-col gap-8 pb-6 pt-2">
         <h1 className="screen-title">Settings</h1>
 
         <Section title="You">

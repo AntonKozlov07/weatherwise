@@ -42,7 +42,7 @@ export function BottomNav() {
         no longer reserves it, so backgrounds reach the physical edge and this
         is the one element that has to sit clear of the home indicator.
       */
-      className="ww-dock px-[1.875rem] pt-3"
+      className="ww-dock sticky bottom-0 mt-auto px-[1.875rem] pt-3"
     >
       <ul className="card-floating flex items-center justify-around rounded-card py-6">
         {ITEMS.map((item) => {

@@ -224,10 +224,6 @@
     /* Named once and reused, so a screen that wants to bleed past the padding
        cancels exactly what was applied rather than a guess at it. */
     --safe-top: env(safe-area-inset-top);
-    /* The dock's full footprint, including the inset it carries. Scroll regions
-       pad by this so their last row clears it, which is what lets content run
-       underneath rather than stopping above it. */
-    --dock-h: calc(6.5rem + env(safe-area-inset-bottom));
 
     overflow-x: hidden;
     overflow-y: auto;
@@ -255,14 +251,7 @@
   }
 
   /* A screen inside the shell. Fills what is left and never grows past it. */
-  /*
-    Every screen fills the display and is the positioning context for the dock,
-    which floats over it. Content therefore runs to the bottom edge and scrolls
-    beneath the bar instead of stopping above it, which is what left a dead
-    strip under the dock on Home and Explore (Decisions Log 98).
-  */
   .screen {
-    position: relative;
     display: flex;
     min-height: 0;
     flex: 1 1 0%;
@@ -491,22 +480,9 @@
      cards, which made it read as a different app bolted on (Decisions Log 74). */
 
   .ww-dock {
-    /* Floated over the screen rather than sitting in its flow, so whatever is
-       behind it reaches the bottom edge. */
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 20;
     /* A floor rather than the raw inset: where the browser reports 0, the dock
        would otherwise sit flush against the bottom edge. */
     padding-bottom: max(env(safe-area-inset-bottom), var(--space-2));
-    /* The bar catches taps; the padding around it does not, so a swipe that
-       lands beside it still reaches the content underneath. */
-    pointer-events: none;
-  }
-
-  .ww-dock > * {
-    pointer-events: auto;
   }
 
   .ww-tab {
@@ -557,54 +533,6 @@
 
   .ww-article:active {
     opacity: 0.6;
-  }
-
-  /* ---- Menu drawer header ------------------------------------------------
-     Runs to the top edge and absorbs the status bar inset, so the notch does
-     not leave a band of bare surface above the first line. */
-
-  .ww-drawer-head {
-    position: relative;
-    overflow: hidden;
-    padding: var(--space-5) var(--space-6) var(--space-6);
-    background: linear-gradient(
-      160deg,
-      var(--grad-0) 0%,
-      var(--grad-1) 60%,
-      var(--grad-2) 100%
-    );
-    background-size: 200% 200%;
-    animation: ww-drift 24s var(--ease-in-out) infinite;
-  }
-
-  /*
-    Soft overlapping blooms, in the condition accent and the gradient's own
-    stops. Muted rather than vivid: this sits behind the app's name and a place
-    name, and colour that competes with them would be decoration winning an
-    argument it should not be in.
-  */
-  .ww-drawer-aurora {
-    position: absolute;
-    inset: -30%;
-    pointer-events: none;
-    background:
-      radial-gradient(
-        38% 38% at 22% 18%,
-        color-mix(in oklab, var(--accent) 42%, transparent),
-        transparent 70%
-      ),
-      radial-gradient(
-        44% 44% at 82% 34%,
-        color-mix(in oklab, var(--grad-2) 55%, transparent),
-        transparent 72%
-      ),
-      radial-gradient(
-        50% 50% at 55% 96%,
-        color-mix(in oklab, var(--accent) 26%, transparent),
-        transparent 74%
-      );
-    filter: blur(6px);
-    animation: ww-aurora 30s var(--ease-in-out) infinite alternate;
   }
 
   /* ---- Time scrubber ---------------------------------------------------- */
@@ -951,15 +879,6 @@
   100% {
     transform: translate3d(280%, 0, 0) scaleX(1);
     opacity: 0;
-  }
-}
-
-@keyframes ww-aurora {
-  from {
-    transform: translate3d(-4%, -3%, 0) scale(1);
-  }
-  to {
-    transform: translate3d(5%, 4%, 0) scale(1.12);
   }
 }
 
