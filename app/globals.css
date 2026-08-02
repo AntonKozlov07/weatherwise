@@ -279,12 +279,6 @@
     height: 100dvh;
   }
 
-  /* Controls inside a bleeding layer have to re-apply the inset themselves, or
-     they sit under the status bar. */
-  .bleed-safe-top {
-    padding-top: var(--safe-top, 0px);
-  }
-
   /* The scrolling region of a screen that has more content than height. */
   .screen-scroll {
     min-height: 0;

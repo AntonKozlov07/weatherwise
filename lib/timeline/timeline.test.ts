@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTimeline, rowIndexAt, spinePath } from "./timeline";
+import { buildTimeline, spinePath } from "./timeline";
 import type { Astronomy, DailyPoint, HourlyPoint } from "@/lib/weather/types";
 
 const HOUR = 3_600_000;
@@ -282,28 +282,5 @@ describe("spinePath", () => {
     const path = spinePath(rows, 100, 56);
 
     expect(path).toContain("28.00");
-  });
-});
-
-describe("rowIndexAt", () => {
-  const rows = buildTimeline({
-    hourly: hours(new Array(12).fill(15)),
-    daily: [],
-    astronomy: noSun,
-    now: NOW,
-  });
-
-  it("snaps to the nearest row, not the next one", () => {
-    expect(rowIndexAt(rows, NOW + 3 * HOUR + 60_000)).toBe(3);
-    expect(rowIndexAt(rows, NOW + 3 * HOUR + 50 * 60_000)).toBe(4);
-  });
-
-  it("clamps to the ends", () => {
-    expect(rowIndexAt(rows, NOW - 100 * HOUR)).toBe(0);
-    expect(rowIndexAt(rows, NOW + 100 * HOUR)).toBe(rows.length - 1);
-  });
-
-  it("reports -1 when there is nothing to snap to", () => {
-    expect(rowIndexAt([], NOW)).toBe(-1);
   });
 });

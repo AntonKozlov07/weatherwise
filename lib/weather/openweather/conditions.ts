@@ -113,6 +113,25 @@ const UNKNOWN: ConditionInfo = {
   icon: "clear",
 };
 
+/**
+ * Labels that name the sun, and what they are called after dark.
+ *
+ * The icons already switch to a night variant, so a clear night rendered a moon
+ * captioned "Mostly Sunny". Only one label in the table refers to the sun,
+ * which is why this stayed unnoticed: it is the single most common night
+ * condition there is (Decisions Log 109).
+ */
+const NIGHT_LABELS: Record<number, string> = {
+  801: "Mostly Clear",
+};
+
+/** The label as it should read at this hour. */
+export function conditionLabelFor(code: number, isDay: boolean): string {
+  if (!isDay && NIGHT_LABELS[code]) return NIGHT_LABELS[code];
+
+  return conditionInfo(code).label;
+}
+
 export function conditionInfo(code: number): ConditionInfo {
   return (
     CONDITIONS[code] ?? GROUP_FALLBACK[Math.floor(code / 100)] ?? UNKNOWN

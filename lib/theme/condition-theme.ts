@@ -131,6 +131,24 @@ const PALETTE: Record<ConditionKey, Record<TimeOfDay, Palette>> = {
   },
 };
 
+/**
+ * A theme for a condition and an explicit time of day.
+ *
+ * The world board knows whether it is light in a city because the vendor says
+ * so, but has no sunrise or sunset to infer it from. Passing nulls to
+ * `conditionTheme` would silently resolve to day, so a card for a city in the
+ * middle of its night was themed as noon.
+ */
+export function conditionThemeFor(
+  code: number,
+  timeOfDay: TimeOfDay,
+): ConditionTheme {
+  const condition = conditionKeyFor(code);
+  const { gradient, accent } = PALETTE[condition][timeOfDay];
+
+  return { timeOfDay, condition, gradient, accent };
+}
+
 export function conditionTheme(
   code: number,
   observedAt: number,

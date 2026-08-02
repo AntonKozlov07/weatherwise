@@ -1,5 +1,5 @@
 import { wmoToOwm } from "@/lib/weather/openmeteo/wmo";
-import { conditionInfo } from "@/lib/weather/openweather/conditions";
+import { conditionLabelFor } from "@/lib/weather/openweather/conditions";
 import { cityCoordinates, WORLD_CITIES, type WorldCity } from "@/lib/world/cities";
 import type { ConditionRef } from "@/lib/weather/types";
 
@@ -33,6 +33,7 @@ export type WorldSnapshot = WorldCity & {
 
 type RawCity = {
   timezone?: unknown;
+  utc_offset_seconds?: unknown;
   current?: {
     time?: unknown;
     temperature_2m?: unknown;
@@ -54,24 +55,32 @@ function toSnapshot(city: WorldCity, raw: RawCity): WorldSnapshot | null {
   if (!current || typeof current.temperature_2m !== "number") return null;
 
   const owmCode = wmoToOwm(num(current.weather_code, 0));
-  const info = conditionInfo(owmCode);
+  // Open-Meteo reports day or night directly, which is more reliable than
+  // inferring it from a clock and a longitude.
+  const isDay = num(current.is_day, 1) === 1;
 
   return {
     ...city,
-    condition: {
-      code: owmCode,
-      label: info.label,
-      // Open-Meteo reports day or night directly, which is more reliable than
-      // inferring it from a clock and a longitude.
-      isDay: num(current.is_day, 1) === 1,
-    },
+    condition: { code: owmCode, label: conditionLabelFor(owmCode, isDay), isDay },
     temperature: num(current.temperature_2m),
     feelsLike: num(current.apparent_temperature, num(current.temperature_2m)),
     humidity: num(current.relative_humidity_2m, 50),
     windKph: num(current.wind_speed_10m),
     precipitation: num(current.precipitation),
+    /*
+      Open-Meteo returns a local wall clock under `timezone=auto`, with no
+      offset on it: "2026-08-01T08:00" is eight in the morning in Tokyo, not in
+      UTC. Parsing it with a Z appended gives an instant that is wrong by the
+      city's offset, and formatting that instant back into the city's zone
+      shifts it a second time. Tokyo read 5pm when it was 8am.
+
+      The offset the response carries alongside it is what makes the instant
+      real (Decisions Log 108).
+    */
     observedAt:
-      typeof current.time === "string" ? Date.parse(`${current.time}Z`) : Date.now(),
+      typeof current.time === "string"
+        ? Date.parse(`${current.time}Z`) - num(raw.utc_offset_seconds) * 1000
+        : Date.now(),
     timeZone: typeof raw.timezone === "string" ? raw.timezone : "UTC",
   };
 }

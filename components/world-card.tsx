@@ -9,7 +9,7 @@ import { WeatherIcon } from "@/components/weather-icon";
 import { formatTime, formatWind, type Units } from "@/lib/format";
 import { useExpandingPanel } from "@/lib/hooks/use-expanding-panel";
 import type { Tilt } from "@/lib/hooks/use-tilt";
-import { conditionTheme } from "@/lib/theme/condition-theme";
+import { conditionThemeFor } from "@/lib/theme/condition-theme";
 import { CLIMATE_GRADIENT, CLIMATE_LABEL } from "@/lib/world/cities";
 import type { WorldSnapshot } from "@/lib/world/world";
 
@@ -43,7 +43,12 @@ export function WorldCard({
 
   // Opened, the card is themed by what the weather is doing there, using the
   // same theming as the home screen rather than a second palette.
-  const theme = conditionTheme(city.condition.code, city.observedAt, null, null);
+  // The vendor reports whether it is light there, which is more reliable than
+  // inferring it, and there are no sun times in this payload to infer from.
+  const theme = conditionThemeFor(
+    city.condition.code,
+    city.condition.isDay ? "day" : "night",
+  );
   const stops = expanded ? theme.gradient : climate;
 
   const background = `linear-gradient(150deg, ${stops[0]} 0%, ${stops[1]} 55%, ${stops[2]} 100%)`;

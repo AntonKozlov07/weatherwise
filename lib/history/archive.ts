@@ -1,4 +1,4 @@
-import { ARCHIVE_API } from "@/lib/weather/openmeteo/client";
+import { archiveUrl } from "@/lib/weather/openmeteo/history";
 import type { DayRecord } from "@/lib/history/on-this-day";
 
 /**
@@ -72,11 +72,9 @@ export async function fetchOnThisDay(
 
   const fetchYear = async (year: number) => {
     const date = `${year}-${pad(month)}-${pad(safeDay)}`;
-    const url =
-      `${ARCHIVE_API}?latitude=${latitude}&longitude=${longitude}` +
-      `&start_date=${date}&end_date=${date}` +
-      "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum" +
-      "&timezone=auto";
+    // Built by the scaffolding module rather than assembled again here: two
+    // places composing the same vendor URL is two places to get it wrong.
+    const url = archiveUrl({ latitude, longitude, start: date, end: date });
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

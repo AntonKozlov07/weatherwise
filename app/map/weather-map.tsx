@@ -370,7 +370,14 @@ export function WeatherMap() {
           </div>
         )}
 
-        <div className="bleed-safe-top pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4">
+        {/*
+          The inset is an arbitrary-value utility rather than the component-layer
+          class it used to be. `p-4` sits in Tailwind's utility layer and won
+          against it silently, so the controls rendered at the very top of the
+          display, under the status bar, while the class looked applied
+          (Decisions Log 110).
+        */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 px-4 pb-4 pt-[calc(var(--safe-top,0px)+1rem)]">
           <div className="card-floating pointer-events-auto flex gap-1 self-start rounded-pill p-1">
             {[...WEATHER_TILE_LAYERS, "off" as const].map((option) => (
               <button

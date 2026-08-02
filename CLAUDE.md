@@ -757,6 +757,30 @@ service worker keeps serving cached assets, and that already caused one round of
     component, shared, so the numbers that make it read as light cannot drift
     between two copies.
 
+108. **Open-Meteo's local times need the offset subtracted.** Under
+    `timezone=auto` the response carries a wall clock with no offset on it:
+    "2026-08-01T08:00" is eight in the morning in Tokyo, not in UTC. Parsing it
+    with a Z appended produces an instant wrong by the city's offset, and
+    formatting that instant back into the city's zone shifts it a second time.
+    Tokyo displayed 5pm when it was 8am. The `utc_offset_seconds` beside it is
+    what makes the instant real.
+
+109. **Condition labels are day-aware.** The icons already switched to a night
+    variant, so a clear night rendered a moon captioned "Mostly Sunny". Exactly
+    one label in the table names the sun, which is why it survived this long,
+    and it is also one of the most common conditions there is.
+
+110. **A component-layer class can be silently overridden by a utility, and has
+    been twice.** `.bleed-safe-top` lost to `p-4` on the map controls, putting
+    them at the top of the display under the status bar while the class looked
+    applied. The same shape of mistake produced the drawer's double inset. The
+    class is deleted rather than fixed: the inset is now an arbitrary-value
+    utility, which cannot lose to another utility on the same element.
+
+111. **Tap targets are 44px.** The remove-location control was 26: an 18px icon
+    with 4px of padding. The icon is unchanged and the padding does the work, so
+    it looks the same and is nearly twice as easy to hit.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

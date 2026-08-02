@@ -1,4 +1,4 @@
-import { conditionInfo } from "./openweather/conditions";
+import { conditionLabelFor } from "./openweather/conditions";
 import type {
   RawAlertDetail,
   RawCurrentRecord,
@@ -70,10 +70,14 @@ function normalizeCondition(weather: RawWeather[] | undefined): ConditionRef {
   const entry = weather?.[0];
   const code = entry?.id ?? 800;
 
+  const isDay = entry?.icon ? entry.icon.endsWith("d") : true;
+
   return {
     code,
-    label: conditionInfo(code).label,
-    isDay: entry?.icon ? entry.icon.endsWith("d") : true,
+    // Day-aware: the icon already switches after dark, and a moon labelled
+    // "Mostly Sunny" is the mismatch that produced (Decisions Log 109).
+    label: conditionLabelFor(code, isDay),
+    isDay,
   };
 }
 

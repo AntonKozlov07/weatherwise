@@ -41,17 +41,6 @@ type OrientationConstructor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
 
-/** True where the browser will only release orientation after a prompt. */
-export function tiltNeedsPermission(): boolean {
-  if (typeof window === "undefined") return false;
-
-  const constructor = window.DeviceOrientationEvent as
-    | OrientationConstructor
-    | undefined;
-
-  return typeof constructor?.requestPermission === "function";
-}
-
 export function tiltSupported(): boolean {
   return typeof window !== "undefined" && "DeviceOrientationEvent" in window;
 }

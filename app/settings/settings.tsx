@@ -182,7 +182,11 @@ export function Settings() {
                       type="button"
                       onClick={() => removeLocation(location.id)}
                       aria-label={`Remove ${location.name}`}
-                      className="ww-press shrink-0 rounded-inner p-1 text-text-dim"
+                      /* 44px, which is the practical floor for a target a
+                         thumb has to hit. The icon is 18px; the rest is
+                         padding, so the control looks the same and is nearly
+                         twice as easy to press (Decisions Log 111). */
+                      className="ww-press flex size-11 shrink-0 items-center justify-center rounded-inner text-text-dim"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
                         <path d="M6 6l12 12M18 6 6 18" />

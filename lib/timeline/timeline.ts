@@ -255,21 +255,3 @@ export function spinePath(
 
   return path;
 }
-
-/** The row nearest an instant, for the scrubber to snap onto. */
-export function rowIndexAt(rows: TimelineRow[], time: number): number {
-  if (rows.length === 0) return -1;
-
-  let best = 0;
-  let bestGap = Infinity;
-
-  rows.forEach((row, index) => {
-    const gap = Math.abs(row.time - time);
-    if (gap < bestGap) {
-      bestGap = gap;
-      best = index;
-    }
-  });
-
-  return best;
-}
