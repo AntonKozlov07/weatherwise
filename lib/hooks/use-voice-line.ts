@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { adviceParagraph } from "@/lib/voice/advice";
+import { adviceParagraph, profileAdvice } from "@/lib/voice/advice";
+import {
+  EMPTY_PROFILE,
+  hasProfile,
+  triggersFor,
+  viableActivities,
+  type WeatherProfile,
+} from "@/lib/profile/profile";
 import { buildDigest } from "@/lib/voice/prompt";
 import type { Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
@@ -26,14 +33,24 @@ export function useVoiceLine(
   location: LocationSummary,
   confidence: "high" | "moderate" | "low" | null = null,
   sunset: number | null = null,
+  profile: WeatherProfile = EMPTY_PROFILE,
 ): Advice {
   const digest = buildDigest(current, hourly, location.timeZone, confidence, sunset);
+
+  const personalised = hasProfile(profile);
 
   const deterministic: Advice = {
     paragraph: adviceParagraph(
       voiceLine({ current, hourly, timeZone: location.timeZone }),
       digest,
       confidence,
+      personalised
+        ? profileAdvice(
+            digest,
+            triggersFor(profile, digest),
+            viableActivities(profile, digest),
+          )
+        : null,
     ),
   };
 
@@ -47,7 +64,15 @@ export function useVoiceLine(
 
   // Keyed on the observation, so a refresh that returns the same reading does
   // not trigger another round trip.
-  const key = `${location.latitude},${location.longitude},${current.observedAt},${confidence ?? "-"}`;
+  // The profile is part of the key: changing an answer has to produce a new
+  // paragraph rather than serving back one written for the old preferences.
+  const key = [
+    location.latitude,
+    location.longitude,
+    current.observedAt,
+    confidence ?? "-",
+    JSON.stringify(profile),
+  ].join(",");
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +90,7 @@ export function useVoiceLine(
         longitude: location.longitude,
         confidence,
         sunset,
+        profile,
       }),
     })
       .then((response) => (response.ok ? response.json() : null))

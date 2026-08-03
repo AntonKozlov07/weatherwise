@@ -1,3 +1,4 @@
+import { ACTIVITY_LABELS, type ActivityId, type Trigger } from "@/lib/profile/profile";
 import type { VoiceDigest } from "@/lib/voice/prompt";
 
 /**
@@ -102,8 +103,16 @@ export function adviceParagraph(
   line: string,
   digest: VoiceDigest,
   confidence: VoiceDigest["confidence"] = null,
+  /** Null where the reader skipped the questions, which reads as no profile. */
+  profileSentence: string | null = null,
 ): string {
-  const sentences = [line, wearAdvice(digest), activityAdvice(digest)];
+  const sentences = [
+    line,
+    wearAdvice(digest),
+    // The profile steers the closing sentence where it has something to say,
+    // and stands aside where it does not.
+    profileSentence ?? activityAdvice(digest),
+  ];
 
   // The hedge the generated version gets through its prompt. Stated plainly
   // here, since a rules engine has no way to weave it in.
@@ -112,4 +121,60 @@ export function adviceParagraph(
   }
 
   return sentences.join(" ");
+}
+
+/**
+ * The deterministic third sentence, steered by the profile.
+ *
+ * The model gets the same profile through its prompt; this is the floor beneath
+ * it. Without this the paragraph would quietly lose its character whenever
+ * generation failed, and the reader would have no way to tell why the app had
+ * started talking differently (Decisions Log 117).
+ *
+ * Deliberately plainer than the generated version. It nudges rather than
+ * announces, for the same reason: naming the preference back at the reader is
+ * telling them something they already know.
+ */
+export function profileAdvice(
+  digest: VoiceDigest,
+  triggers: Trigger[],
+  activities: ActivityId[],
+): string | null {
+  const first = triggers[0];
+
+  if (first) {
+    const easing =
+      digest.hoursToDry !== null
+        ? ` It eases in about ${digest.hoursToDry} hours.`
+        : "";
+
+    switch (first) {
+      case "heat":
+        return `Hotter than you tend to enjoy. Shade and evening, if it can wait.`;
+      case "cold":
+        return `Colder than you like it. Worth keeping the trip short.`;
+      case "wind":
+        return `Blustery, which you would rather do without. Sheltered routes only.`;
+      case "humidity":
+        return `Heavy, muggy air, the kind you dislike. Later on will be easier.`;
+      case "rain":
+        return `Wet, which is not your weather.${easing || " Indoors is the easier call."}`;
+      case "strong-sun":
+        return `Sun is strong today, stronger than you like. Cover up or wait for the evening.`;
+      case "grey":
+        return `Flat and grey all day, the sort you find dispiriting. Nothing more to it than that.`;
+      case "sudden-changes":
+        return `A big swing between the high and the low today, which you do not much like.`;
+    }
+  }
+
+  if (activities.length > 0) {
+    const named = activities.slice(0, 2).map((id) => ACTIVITY_LABELS[id].toLowerCase());
+    const list = named.length === 2 ? `${named[0]} or ${named[1]}` : named[0];
+
+    return `Good conditions for ${list}, if you have the time.`;
+  }
+
+  // Nothing in the profile applies, so the general advice stands.
+  return null;
 }

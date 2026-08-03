@@ -1,5 +1,7 @@
 import { buildDigest, digestKey, SYSTEM_PROMPT, userPrompt } from "@/lib/voice/prompt";
-import { adviceParagraph } from "@/lib/voice/advice";
+import { adviceParagraph, profileAdvice } from "@/lib/voice/advice";
+import { parseProfile } from "@/lib/profile/parse";
+import { hasProfile, triggerPhrase, triggersFor, viableActivities, ACTIVITY_LABELS } from "@/lib/profile/profile";
 import { validateAdvice, type Advice } from "@/lib/voice/validate";
 import { voiceLine } from "@/lib/voice/voice";
 import type { CurrentConditions, HourlyPoint } from "@/lib/weather/types";
@@ -68,6 +70,28 @@ function remember(key: string, advice: Advice): void {
   cache.set(key, { advice, at: Date.now() });
 }
 
+/**
+ * The last paragraph written for a location, so a run of identical days does
+ * not produce a run of identical sentences (Decisions Log 118).
+ *
+ * Keyed by location rather than by digest: the point is to compare against what
+ * was last said here, and a digest-keyed entry would only ever match itself.
+ */
+const previous = new Map<string, string>();
+
+function locationOf(key: string): string {
+  return key.split("|").slice(0, 2).join("|");
+}
+
+function previousFor(key: string): string | null {
+  return previous.get(locationOf(key)) ?? null;
+}
+
+function rememberPrevious(key: string, paragraph: string): void {
+  if (previous.size > CACHE_MAX) previous.clear();
+  previous.set(locationOf(key), paragraph);
+}
+
 type Body = {
   current?: CurrentConditions;
   hourly?: HourlyPoint[];
@@ -78,9 +102,14 @@ type Body = {
   confidence?: "high" | "moderate" | "low" | null;
   /** Epoch millis, so the copy can say how long the light has left. */
   sunset?: number | null;
+  /** Likes and dislikes. Absent or empty means the reader skipped the questions. */
+  profile?: unknown;
 };
 
-async function generate(digest: ReturnType<typeof buildDigest>): Promise<string | null> {
+async function generate(
+  digest: ReturnType<typeof buildDigest>,
+  context: Parameters<typeof userPrompt>[1],
+): Promise<string | null> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
 
@@ -104,7 +133,7 @@ async function generate(digest: ReturnType<typeof buildDigest>): Promise<string 
         temperature: 1,
         system: SYSTEM_PROMPT,
         messages: [
-          { role: "user", content: userPrompt(digest) },
+          { role: "user", content: userPrompt(digest, context) },
           // Prefilled, so the reply starts inside the object and cannot open
           // with a preamble that would have to be stripped or rejected.
           { role: "assistant", content: "{" },
@@ -156,11 +185,23 @@ export async function POST(request: Request): Promise<Response> {
 
   // The deterministic version is computed first, so there is always something
   // to return and the generated path never has to handle its own failure.
+  /*
+    A skipped profile has to be indistinguishable from never having been asked:
+    the paragraph falls back to the general one rather than to a personalised
+    one with nothing in it (Decisions Log 117).
+  */
+  const profile = parseProfile(body.profile);
+  const personalised = hasProfile(profile);
+
+  const triggers = personalised ? triggersFor(profile, digest) : [];
+  const activities = personalised ? viableActivities(profile, digest) : [];
+
   const fallback: Advice = {
     paragraph: adviceParagraph(
       voiceLine({ current, hourly, timeZone }),
       digest,
       digest.confidence,
+      personalised ? profileAdvice(digest, triggers, activities) : null,
     ),
   };
 
@@ -171,12 +212,20 @@ export async function POST(request: Request): Promise<Response> {
       // Day and night produce different advice, so they cannot share a cache
       // entry: the evening would serve the afternoon's suggestion back.
       digest.period,
+      // The profile too, or a paragraph written for someone who hates heat gets
+      // served to someone who loves it.
+      triggers.join(",") || "-",
+      activities.join(",") || "-",
     ].join("|");
 
     const hit = cached(key);
     if (hit) return Response.json(hit);
 
-    const raw = await generate(digest);
+    const raw = await generate(digest, {
+      dislikes: triggers.map(triggerPhrase),
+      activities: activities.map((id) => ACTIVITY_LABELS[id].toLowerCase()),
+      previous: previousFor(key),
+    });
     if (raw === null) return Response.json(fallback);
 
     let parsed: unknown;
@@ -197,6 +246,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     remember(key, checked.advice);
+    rememberPrevious(key, checked.advice.paragraph);
     return Response.json(checked.advice);
   } catch (error) {
     console.error("Copy generation failed:", (error as Error).message);

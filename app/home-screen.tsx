@@ -25,6 +25,7 @@ import { useVoiceLine } from "@/lib/hooks/use-voice-line";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { buildTimeline } from "@/lib/timeline/timeline";
 import { activeLocation, type SavedLocation } from "@/lib/preferences";
+import type { WeatherProfile } from "@/lib/profile/profile";
 import { readPreferences } from "@/lib/preferences-store";
 import type { ForecastBundle } from "@/lib/weather/types";
 
@@ -41,6 +42,7 @@ function LoadedHome({
   motionEffects,
   locations,
   activeLocationId,
+  weatherProfile,
 }: {
   bundle: ForecastBundle;
   staleSince: number | null;
@@ -50,6 +52,7 @@ function LoadedHome({
   motionEffects: boolean;
   locations: SavedLocation[];
   activeLocationId: string | null;
+  weatherProfile: WeatherProfile;
 }) {
   const gradient = useGreetingGradient(bundle.current.condition, bundle.astronomy);
 
@@ -68,6 +71,7 @@ function LoadedHome({
     // badge, so a hedged day reads as a hedged sentence (Decisions Log 99).
     bundle.agreement?.confidence ?? null,
     bundle.astronomy.sunset,
+    weatherProfile,
   );
 
   const rows = useMemo(
@@ -292,6 +296,7 @@ export function HomeScreen() {
                 motionEffects={preferences.motionEffects}
                 locations={preferences.locations}
                 activeLocationId={preferences.activeLocationId}
+                weatherProfile={preferences.weatherProfile}
               />
             )}
           </div>

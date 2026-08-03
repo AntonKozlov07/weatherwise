@@ -864,6 +864,37 @@ service worker keeps serving cached assets, and that already caused one round of
     because at the top of the hour the previous one is finished and has nothing
     left to say.
 
+117. **The profile steers the paragraph and nothing else.** Five questions in
+    onboarding and on a page below Settings: activities, heat, cold, wind,
+    humidity, and anything else to avoid. It changes no threshold elsewhere in
+    the app, no displayed number, and is never labelled on screen as
+    personalisation.
+
+    Three rungs, taken in order. A dislike today actually sets off gets a nudge
+    around it. Failing that, activities they chose that today suits. Failing
+    that, the general paragraph, unchanged. A skipped profile is
+    indistinguishable from never having been asked.
+
+    Only triggered dislikes reach the model. A profile that dislikes wind must
+    not produce a wind sentence on a still day, and the surest guard is never to
+    mention wind at all. Likes are never triggers either: someone who loves heat
+    does not need telling it is hot.
+
+    The deterministic engine consumes the same profile. Without that the
+    paragraph would lose its character whenever generation failed, and the
+    reader would have no way to tell why the app had started talking
+    differently. That constraint is what keeps the profile expressible as a list
+    and a few enums rather than as prose.
+
+    Where several dislikes fire at once the first is used, in declaration order.
+    That is arbitrary rather than a ranking, which is the honest consequence of
+    weighting everything equally.
+
+118. **The paragraph knows what it said last time.** The previous one for a
+    location is passed back in, and the model is told to acknowledge a repeat
+    day plainly rather than dress the same facts as news. Keyed by location, not
+    by digest: a digest-keyed entry would only ever match itself.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

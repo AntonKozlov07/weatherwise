@@ -1,5 +1,7 @@
 import type { Units } from "./format";
 import { parseRules, type ThresholdRule } from "@/lib/push/rules";
+import { EMPTY_PROFILE, type WeatherProfile } from "@/lib/profile/profile";
+import { parseProfile } from "@/lib/profile/parse";
 
 export type { Units };
 
@@ -40,6 +42,12 @@ export type Preferences = {
    * thing, the other is this user's own line in the sand (Decisions Log 69).
    */
   alertRules: ThresholdRule[];
+  /**
+   * Likes and dislikes, used only to steer the home screen's paragraph. Empty
+   * where the reader skipped the questions, which must be indistinguishable
+   * from never having been asked (Decisions Log 117).
+   */
+  weatherProfile: WeatherProfile;
   locations: SavedLocation[];
   activeLocationId: string | null;
   onboarded: boolean;
@@ -62,6 +70,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   alertBanners: true,
   motionEffects: false,
   alertRules: [],
+  weatherProfile: EMPTY_PROFILE,
   locations: [],
   activeLocationId: null,
   onboarded: false,
@@ -155,6 +164,7 @@ export function parsePreferences(raw: string | null): Preferences {
     // The same guard the server uses, so a hand-edited localStorage cannot put
     // a malformed rule into the UI or onto the wire.
     alertRules: parseRules(stored.alertRules),
+    weatherProfile: parseProfile(stored.weatherProfile),
     locations,
     activeLocationId,
     onboarded:

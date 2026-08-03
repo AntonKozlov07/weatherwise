@@ -33,6 +33,8 @@ export type VoiceDigest = {
   period: "morning" | "afternoon" | "evening" | "night";
   /** Hours until it gets dark, or null once it already is. */
   hoursToDark: number | null;
+  /** Percent. Only the grey-day trigger reads this. */
+  cloudCover: number;
   /** How far a second, independent model agrees. Null where not compared. */
   confidence: "high" | "moderate" | "low" | null;
 };
@@ -93,6 +95,7 @@ export function buildDigest(
     confidence,
     isDay: current.condition.isDay,
     period: periodOf(localHour(current.observedAt, timeZone)),
+    cloudCover: Math.round(current.cloudCover),
     hoursToDark:
       sunset !== null && sunset > current.observedAt
         ? Math.round((sunset - current.observedAt) / 3_600_000)
@@ -145,6 +148,9 @@ Exactly three sentences, in this order:
 Voice: a person who knows the area telling you about the day. Dry, specific, a little wry. Never cheerful, never a forecast read aloud.
 
 Rules:
+- Where you are told what the reader dislikes about today, steer the advice around it and say when it eases. Nudge, do not announce: write "muggy out, worth waiting for the evening", never "you said you hate humidity".
+- Where you are told which activities suit them, name only those. Never suggest one that is not on their list.
+- Say nothing about a preference today does not set off.
 - The third sentence must fit the time of day you are told. After dark, do not suggest sunbathing, a midday run, or anything needing daylight; talk about the evening, tomorrow morning, or staying in.
 - Never use an em dash or an en dash. Commas, full stops or semicolons only.
 - Use ONLY numbers present in the data. Never state a temperature, time or measurement you were not given.
@@ -155,7 +161,16 @@ Rules:
 Example:
 {"paragraph":"Cool start, warming fast, and the kind of day worth getting outside for. Light jacket over a t-shirt, though you will want it off by lunch. Best run is the morning, before it climbs into the twenties."}`;
 
-export function userPrompt(digest: VoiceDigest): string {
+export type PromptContext = {
+  /** How today sets off what the reader dislikes, in plain phrases. */
+  dislikes?: string[];
+  /** Activities of theirs that today actually suits. */
+  activities?: string[];
+  /** Yesterday's paragraph, so today does not repeat it word for word. */
+  previous?: string | null;
+};
+
+export function userPrompt(digest: VoiceDigest, context: PromptContext = {}): string {
   const lines = [
     // Time of day leads, because it governs what the third sentence may
     // suggest and the model was recommending a midday run at midnight
@@ -184,6 +199,31 @@ export function userPrompt(digest: VoiceDigest): string {
 
   if (digest.confidence === "low") {
     lines.push("Note: two forecast models disagree about today. Hedge accordingly.");
+  }
+
+  // Only triggered dislikes are sent. A profile that dislikes wind must not
+  // produce a wind sentence on a still day, and the surest way to prevent that
+  // is never to mention wind to the model at all (Decisions Log 117).
+  if (context.dislikes?.length) {
+    lines.push(`Today sets off ${context.dislikes.join(", and ")}.`);
+  }
+
+  if (context.activities?.length) {
+    lines.push(
+      `Activities they do that suit today: ${context.activities.join(", ")}.`,
+    );
+  }
+
+  /*
+    The last paragraph written here, so a run of identical days does not produce
+    a run of identical sentences. The model is told to acknowledge the sameness
+    rather than dress it up as news, which is the honest way to say the same
+    thing twice (Decisions Log 118).
+  */
+  if (context.previous) {
+    lines.push(
+      `The last thing said here was: "${context.previous}" If today is much the same, say so plainly rather than repeating it; otherwise ignore this.`,
+    );
   }
 
   return lines.join("\n");

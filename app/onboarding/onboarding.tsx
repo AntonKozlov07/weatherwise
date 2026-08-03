@@ -5,18 +5,24 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { LocationSearch } from "@/components/location-search";
+import { ProfileQuestions } from "@/components/profile-questions";
 import { updatePreferences, usePreferences } from "@/components/preferences-provider";
 import { GhostButton, OptionGroup, PrimaryButton, TextField, Toggle } from "@/components/ui";
 import type { FontSize, SavedLocation, Theme, Units } from "@/lib/preferences";
 
 /**
- * Three steps: Welcome, Personalize, Location.
+ * Four steps: Welcome, Personalize, Your weather, Location.
+ *
+ * The fourth was added last and sits before Location deliberately: it is the
+ * one a reader is most likely to skip, and putting it after the thing they came
+ * for would mean answering questions once the app is already usable
+ * (Decisions Log 117).
  *
  * There is no login or signup anywhere in here. The original Figma had four
  * such screens and they are cut (Decisions Log 1), as is the language selector
  * (Decisions Log 3).
  */
-const STEPS = ["Welcome", "Personalize", "Location"] as const;
+const STEPS = ["Welcome", "Personalize", "Your weather", "Location"] as const;
 
 function Dots({ step }: { step: number }) {
   return (
@@ -144,6 +150,24 @@ export function Onboarding() {
 
         {step === 2 && (
           <div className="flex flex-col gap-6 pt-6">
+            <div>
+              <h1 className="type-heading text-2xl">A few questions</h1>
+              <p className="mt-3 text-base text-text-dim">
+                What you like and dislike about weather, so the summary on the
+                home screen is about your day rather than the weather in
+                general. Skip it and nothing changes.
+              </p>
+            </div>
+
+            <ProfileQuestions
+              profile={preferences.weatherProfile}
+              onChange={(weatherProfile) => updatePreferences({ weatherProfile })}
+            />
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="flex flex-col gap-6 pt-6">
             <h1 className="type-heading text-2xl">Where are you?</h1>
             <p className="text-base text-text-dim">
               Pick a city to start with. You can add more later.
@@ -164,9 +188,9 @@ export function Onboarding() {
           )}
 
           <div className="flex-1">
-            {step < 2 ? (
+            {step < 3 ? (
               <PrimaryButton onClick={() => setStep((current) => current + 1)}>
-                Continue
+                {step === 2 ? "Done" : "Continue"}
               </PrimaryButton>
             ) : (
               // Skipping leaves no saved location, and the home screen falls

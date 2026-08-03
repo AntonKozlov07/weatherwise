@@ -121,6 +121,13 @@ export function AppHeader({ locationName }: { locationName?: string }) {
             >
               Settings
             </Link>
+            <Link
+              href="/your-weather"
+              onClick={() => setOpen(false)}
+              className="rounded-inner px-3 py-3 text-base hover:bg-surface-raised"
+            >
+              Your weather
+            </Link>
             {/*
               Small print, pushed to the foot of the drawer. It belongs in the
               menu rather than buried in Settings, which is where people look
