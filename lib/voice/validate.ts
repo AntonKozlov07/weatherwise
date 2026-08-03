@@ -68,7 +68,7 @@ function allowedNumbers(digest: VoiceDigest): Set<number> {
     Math.abs(digest.temperature - digest.low),
   ]);
 
-  for (const offset of [digest.hoursToRain, digest.hoursToDry]) {
+  for (const offset of [digest.hoursToRain, digest.hoursToDry, digest.hoursToDark]) {
     if (offset === null) continue;
 
     allowed.add(offset);

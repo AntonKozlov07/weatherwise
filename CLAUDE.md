@@ -890,10 +890,26 @@ service worker keeps serving cached assets, and that already caused one round of
     That is arbitrary rather than a ranking, which is the honest consequence of
     weighting everything equally.
 
-118. **The paragraph knows what it said last time.** The previous one for a
+118. **The paragraph knows what it said last time, if enough time has passed.**
+    The memory is keyed by location and gated on age. Ungated it fired within
+    seconds: two requests moments apart are trivially "much the same", so
+    changing a preference produced "much the same as yesterday" about a
+    paragraph written ten seconds earlier. Found in live output, not in tests. The previous one for a
     location is passed back in, and the model is told to acknowledge a repeat
     day plainly rather than dress the same facts as news. Keyed by location, not
     by digest: a digest-keyed entry would only ever match itself.
+
+119. **The validator checks that a number exists, not that it means what the
+    sentence claims.** Live output read "darkness arrives around 4". Four was in
+    the allowed set as the difference between the temperature and the low, and
+    the model spent it as a clock hour. Membership cannot catch that: the figure
+    was real, the role was invented.
+
+    Two mitigations, neither complete. The prompt now forbids stating a clock
+    time that was not given, and the digest supplies the actual hour the light
+    goes so there is a correct one to reach for. The class of fault remains
+    possible and is worth remembering: every number in generated copy is checked
+    for existence, never for meaning.
 
 Outstanding:
 

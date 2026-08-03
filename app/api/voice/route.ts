@@ -77,19 +77,32 @@ function remember(key: string, advice: Advice): void {
  * Keyed by location rather than by digest: the point is to compare against what
  * was last said here, and a digest-keyed entry would only ever match itself.
  */
-const previous = new Map<string, string>();
+const previous = new Map<string, { paragraph: string; at: number }>();
+
+/**
+ * How old the last paragraph must be before it counts as "last time".
+ *
+ * Without this the continuity line fired within seconds: two requests moments
+ * apart are trivially "much the same", so changing a preference produced "much
+ * the same as yesterday" about a paragraph written ten seconds earlier
+ * (Decisions Log 118).
+ */
+const CONTINUITY_MIN_AGE_MS = 8 * 60 * 60 * 1000;
 
 function locationOf(key: string): string {
   return key.split("|").slice(0, 2).join("|");
 }
 
 function previousFor(key: string): string | null {
-  return previous.get(locationOf(key)) ?? null;
+  const hit = previous.get(locationOf(key));
+  if (!hit) return null;
+
+  return Date.now() - hit.at >= CONTINUITY_MIN_AGE_MS ? hit.paragraph : null;
 }
 
 function rememberPrevious(key: string, paragraph: string): void {
   if (previous.size > CACHE_MAX) previous.clear();
-  previous.set(locationOf(key), paragraph);
+  previous.set(locationOf(key), { paragraph, at: Date.now() });
 }
 
 type Body = {

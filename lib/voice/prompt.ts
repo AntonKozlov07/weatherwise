@@ -154,6 +154,7 @@ Rules:
 - The third sentence must fit the time of day you are told. After dark, do not suggest sunbathing, a midday run, or anything needing daylight; talk about the evening, tomorrow morning, or staying in.
 - Never use an em dash or an en dash. Commas, full stops or semicolons only.
 - Use ONLY numbers present in the data. Never state a temperature, time or measurement you were not given.
+- Never state a clock time unless one is given to you. A number given as a temperature or a duration is not a time.
 - Never invent rain, wind or conditions not in the data.
 - Under 300 characters total. No emoji, no exclamation marks, no greetings.
 - Do not mention the data, the app, or yourself.
@@ -169,6 +170,14 @@ export type PromptContext = {
   /** Yesterday's paragraph, so today does not repeat it word for word. */
   previous?: string | null;
 };
+
+/** The hour the light goes, on a twelve-hour clock, for the prompt to quote. */
+function darkAtClock(digest: VoiceDigest): string {
+  const at = (digest.hour + (digest.hoursToDark ?? 0)) % 24;
+  const hour12 = at % 12 === 0 ? 12 : at % 12;
+
+  return `${hour12}${at >= 12 ? "pm" : "am"}`;
+}
 
 export function userPrompt(digest: VoiceDigest, context: PromptContext = {}): string {
   const lines = [
@@ -194,7 +203,13 @@ export function userPrompt(digest: VoiceDigest, context: PromptContext = {}): st
   // than a badge on the screen, so the confidence arrives as a fact about the
   // forecast and the model chooses how to say it (Decisions Log 99).
   if (digest.hoursToDark !== null) {
-    lines.push(`Dark in about ${digest.hoursToDark}h`);
+    // The clock time as well as the duration, so a sentence about the light has
+    // a correct time to reach for. Given only the duration, the model spent a
+    // temperature difference as a clock hour and said darkness arrived at four
+    // (Decisions Log 119).
+    lines.push(
+      `Dark in about ${digest.hoursToDark}h, which is ${darkAtClock(digest)}`,
+    );
   }
 
   if (digest.confidence === "low") {
