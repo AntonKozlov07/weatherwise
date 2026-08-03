@@ -581,6 +581,31 @@
     transform: scale(0.985);
   }
 
+  /* The standings panel. Taller than the city card's, because a ranking is a
+     list and a list wants room, and it scrolls inside itself where the others
+     deliberately do not: fifty rows cannot be made to fit. */
+  .ww-board-panel {
+    top: 50%;
+    transform-origin: top right;
+    translate: 0 -50%;
+    max-width: 26rem;
+    margin-inline: auto;
+    max-height: calc(
+      100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) -
+        var(--space-6)
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-4) var(--space-5) var(--space-6);
+    border-radius: var(--radius-lg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: var(--elevation-floating);
+    transition:
+      transform var(--dur-slow) var(--ease-out),
+      opacity var(--dur-base) var(--ease-out);
+  }
+
   /* ---- Leaderboard ------------------------------------------------------ */
 
   .ww-rank-row {

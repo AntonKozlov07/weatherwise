@@ -808,6 +808,38 @@ service worker keeps serving cached assets, and that already caused one round of
     everywhere else would put a vendor difference into the standings and call it
     weather.
 
+114. **Fifty cities ranked, eight drawn.** A leaderboard of sixteen is a list;
+    fifty makes a position mean something. Fifty squares would be a directory
+    rather than a glance, so only the featured eight are cards and the rest
+    exist to give the ranking weight. Open-Meteo returns all fifty plus home in
+    one request, verified.
+
+    The standings moved from a section at the foot of the screen to an icon in
+    the header. History and the board answer questions you already had; the
+    ranking answers one you go looking for, and fifty rows below them buried
+    both.
+
+    Russia is excluded from the city list at the user's request.
+
+115. **Forecast accuracy is measured and stated, never applied.** Open-Meteo
+    keeps what was predicted back to 2021 and, separately, what actually
+    happened. Setting one against the other for the same days is a measurement
+    rather than an impression, and it needs no accumulation: both halves already
+    exist. Two requests cover a month, because both endpoints take a range.
+
+    The error is stated and never used to correct the displayed number. Quietly
+    shifting a temperature would make this app disagree with every other
+    forecast without saying why, and a reader who noticed could not tell a
+    correction from a bug.
+
+    A consistent lean is reported; scatter around zero is reported as scatter. A
+    signed average of 0.1 presented as a bias would be noise given authority.
+    Below seven days there is no measurement at all, because a confident number
+    from four days would be believed and would be wrong.
+
+    Verified live: 31 days paired for Burlington, mean high error 1.0 degrees,
+    84% of days within one and a half, worst miss 3.1.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

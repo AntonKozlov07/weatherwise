@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
+
+import { useExpandingPanel } from "@/lib/hooks/use-expanding-panel";
 
 import { celsiusToFahrenheit, kphToMph, type Units } from "@/lib/format";
 import {
@@ -24,6 +27,78 @@ import { HOME_CITY_ID, type WorldSnapshot } from "@/lib/world/world";
  * at twelve and saying nothing more would leave the one city the reader
  * actually came for missing from a board about the world.
  */
+/**
+ * The standings, behind an icon in the header.
+ *
+ * Not a third section on the screen: it answers a question you go looking for,
+ * where the history and the board answer ones you already had, and fifty rows
+ * at the foot of a scroll buried both (Decisions Log 114).
+ */
+export function LeaderboardButton({
+  cities,
+  units,
+}: {
+  cities: WorldSnapshot[];
+  units: Units;
+}) {
+  const { phase, expanded, open, close, sourceRef, panelRef, dragHandlers, dragStyle } =
+    useExpandingPanel();
+
+  if (cities.length === 0) return null;
+
+  return (
+    <>
+      <button
+        ref={sourceRef as React.RefObject<HTMLButtonElement>}
+        type="button"
+        onClick={open}
+        aria-expanded={expanded}
+        aria-label="Where you stand"
+        className="ww-press flex size-11 items-center justify-center rounded-inner text-text-dim"
+      >
+        {/* Three bars, tallest in the middle: a podium rather than a chart. */}
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M4 20v-5h5v5M9.5 20V9h5v11M15 20v-8h5v8M3 20h18"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {expanded &&
+        createPortal(
+          <div
+            className="ww-hero-backdrop fixed inset-0 z-50"
+            data-phase={phase}
+            onClick={close}
+          >
+            <div
+              ref={panelRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Where you stand"
+              className="ww-board-panel absolute inset-x-gutter"
+              style={dragStyle}
+              onClick={(event) => event.stopPropagation()}
+              {...dragHandlers}
+            >
+              <span className="ww-hero-grab" aria-hidden="true" />
+
+              <h2 className="type-label mb-3 text-2xs">Where you stand</h2>
+
+              <Leaderboard cities={cities} units={units} />
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 export function Leaderboard({
   cities,
   units,
