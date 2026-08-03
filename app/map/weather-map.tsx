@@ -9,9 +9,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
 import { usePreferences } from "@/components/preferences-provider";
-import { formatTime } from "@/lib/format";
+import { formatDayShort, formatTime } from "@/lib/format";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { radarTileUrl, type RadarTimeline } from "@/lib/map/radar";
+import { gridAtHour, type ForecastGrid } from "@/lib/map/forecast-grid";
 import {
   MAX_TILE_ZOOM,
   TILE_SIZE,
@@ -23,7 +24,19 @@ import { activeLocation } from "@/lib/preferences";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-type Layer = WeatherTileLayer | "off";
+/**
+ * "forecast" is the only layer that looks forward. The radar layers show the
+ * past, which answered "did it rain" when the question worth opening a map for
+ * is "is it coming here" (Decisions Log 116).
+ */
+type Layer = WeatherTileLayer | "forecast" | "off";
+
+const LAYER_LABELS: Record<Layer, string> = {
+  forecast: "Forecast",
+  precipitation: "Radar",
+  wind: "Wind",
+  off: "Off",
+};
 
 /**
  * CARTO Dark Matter as raster tiles, declared inline.
@@ -62,6 +75,9 @@ const BASEMAP_STYLE: StyleSpecification = {
 
 const OVERLAY_SOURCE = "weather-overlay";
 const OVERLAY_LAYER = "weather-overlay-layer";
+/** The forward layer is point data, so it gets its own source and layer. */
+const GRID_SOURCE = "forecast-grid";
+const GRID_LAYER = "forecast-grid-layer";
 
 /** Long enough to be a real failure rather than a slow connection. */
 const LOAD_TIMEOUT_MS = 15_000;
@@ -122,7 +138,8 @@ export function WeatherMap() {
   const [ready, setReady] = useState(false);
   const [styleError, setStyleError] = useState<string | null>(null);
 
-  const [layer, setLayer] = useState<Layer>("precipitation");
+  // Forecast leads, because it is the one that answers the question.
+  const [layer, setLayer] = useState<Layer>("forecast");
   const [opacity, setOpacity] = useState(0.7);
 
   // Radar timelapse. Precipitation is the only layer with a time dimension.
@@ -130,6 +147,11 @@ export function WeatherMap() {
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [radarError, setRadarError] = useState<string | null>(null);
+
+  // The forward layer. A grid of point forecasts rather than tiles, because no
+  // vendor we can reach sells a forecast tile.
+  const [grid, setGrid] = useState<ForecastGrid | null>(null);
+  const [hour, setHour] = useState(0);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -305,17 +327,91 @@ export function WeatherMap() {
     });
   }, [ready, layer, opacity, timeline, frameIndex]);
 
+  // The forecast grid, fetched once per location.
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`/api/forecast-map?lat=${centre.latitude}&lon=${centre.longitude}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { grid?: ForecastGrid | null } | null) => {
+        if (cancelled) return;
+        setGrid(payload?.grid ?? null);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [centre.latitude, centre.longitude]);
+
+  /**
+   * The forecast overlay is a heatmap over point data, not a raster tile, so it
+   * is added and updated separately from the tile layers above.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    return applyToStyle(map, () => {
+      if (map.getLayer(GRID_LAYER)) map.removeLayer(GRID_LAYER);
+      if (map.getSource(GRID_SOURCE)) map.removeSource(GRID_SOURCE);
+
+      if (layer !== "forecast" || !grid) return;
+
+      map.addSource(GRID_SOURCE, {
+        type: "geojson",
+        data: gridAtHour(grid, hour),
+      });
+
+      map.addLayer({
+        id: GRID_LAYER,
+        type: "heatmap",
+        source: GRID_SOURCE,
+        paint: {
+          "heatmap-weight": ["get", "value"],
+          // Wide radius on purpose: the samples are fifty kilometres apart, and
+          // a tight radius would draw forty-nine dots rather than a front.
+          "heatmap-radius": 60,
+          "heatmap-intensity": 1,
+          "heatmap-opacity": opacity,
+          "heatmap-color": [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0, "rgba(0,0,0,0)",
+            0.2, "rgba(80,140,200,0.55)",
+            0.45, "rgba(90,190,180,0.7)",
+            0.7, "rgba(230,200,90,0.8)",
+            1, "rgba(225,110,80,0.9)",
+          ],
+        },
+      });
+    });
+  }, [ready, layer, grid, hour, opacity]);
+
   // Autoplay is never automatic: the quality bar says the radar must not play on
   // its own, and it is also off under reduced motion.
   useEffect(() => {
-    if (!playing || !timeline) return;
+    if (!playing) return;
+
+    if (layer === "forecast") {
+      if (!grid) return;
+
+      const timer = setInterval(() => {
+        setHour((current) => (current + 1) % grid.times.length);
+      }, FRAME_MS);
+
+      return () => clearInterval(timer);
+    }
+
+    if (!timeline) return;
 
     const timer = setInterval(() => {
       setFrameIndex((current) => (current + 1) % timeline.frames.length);
     }, FRAME_MS);
 
     return () => clearInterval(timer);
-  }, [playing, timeline]);
+  }, [playing, timeline, layer, grid]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -379,17 +475,17 @@ export function WeatherMap() {
         */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 px-4 pb-4 pt-[calc(var(--safe-top,0px)+1rem)]">
           <div className="card-floating pointer-events-auto flex gap-1 self-start rounded-pill p-1">
-            {[...WEATHER_TILE_LAYERS, "off" as const].map((option) => (
+            {(["forecast", ...WEATHER_TILE_LAYERS, "off"] as Layer[]).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setLayer(option)}
                 aria-pressed={layer === option}
-                className={`ww-press rounded-pill px-3 py-1.5 text-sm capitalize transition-colors ${
+                className={`ww-press rounded-pill px-3 py-1.5 text-sm transition-colors ${
                   layer === option ? "bg-surface-raised text-text" : "text-text-dim"
                 }`}
               >
-                {option}
+                {LAYER_LABELS[option]}
               </button>
             ))}
           </div>
@@ -411,6 +507,67 @@ export function WeatherMap() {
         </div>
 
         {/* Timelapse scrubber, above the floating nav. */}
+        {layer === "forecast" && grid && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[9.5rem] px-4">
+            <div className="card-floating pointer-events-auto flex items-center gap-3 rounded-card px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setPlaying((current) => !current)}
+                aria-label={playing ? "Pause" : "Play"}
+                className="ww-press shrink-0 rounded-pill bg-surface-raised p-2"
+              >
+                {playing ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5.5v13l11-6.5-11-6.5Z" />
+                  </svg>
+                )}
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={grid.times.length - 1}
+                  step={1}
+                  value={hour}
+                  onChange={(event) => {
+                    setPlaying(false);
+                    setHour(Number(event.target.value));
+                  }}
+                  aria-label="Forecast time"
+                  className="w-full accent-accent"
+                />
+                <p className="mt-1 flex items-center justify-between text-xs text-text-dim">
+                  <span>
+                    {formatDayShort(
+                      grid.times[hour],
+                      Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    )}{" "}
+                    {formatTime(
+                      grid.times[hour],
+                      Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    )}
+                  </span>
+                  {/* Named, because a map that looks like radar but is not
+                      should say so rather than let the reader assume. */}
+                  <span className="type-label text-2xs text-text-faint">Forecast</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {layer === "forecast" && !grid && (
+          <p className="card-floating pointer-events-auto absolute inset-x-4 bottom-[9.5rem] rounded-pill px-4 py-2 text-sm text-text-dim">
+            No forecast grid for this area.
+          </p>
+        )}
+
         {layer === "precipitation" && timeline && (
           <div className="pointer-events-none absolute inset-x-0 bottom-[9.5rem] px-4">
             <div className="card-floating pointer-events-auto flex items-center gap-3 rounded-card px-4 py-3">

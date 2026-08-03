@@ -840,6 +840,30 @@ service worker keeps serving cached assets, and that already caused one round of
     Verified live: 31 days paired for Burlington, mean high error 1.0 degrees,
     84% of days within one and a half, worst miss 3.1.
 
+116. **The map looks forward, by drawing rather than fetching.** Both radar
+    layers show the past: RainViewer runs two hours behind and currently
+    publishes no nowcast at all, and OpenWeatherMap's tiles are a snapshot of
+    now. The map therefore answered "did it rain" when the only question worth
+    opening a map for is "is it coming here".
+
+    No vendor we can reach sells a forecast tile, so the layer is built from
+    point data instead: a seven by seven grid around you, each point with its
+    own hourly forecast, one request covering three days, rendered as a MapLibre
+    heatmap that scrubs forward.
+
+    The trade is named on the screen rather than hidden. This is interpolation
+    between forecast points, not observed radar; it cannot show a shower that
+    fits between two samples fifty kilometres apart. What it can do, and radar
+    cannot, is show tomorrow. The radar layers stay for what actually happened.
+
+    Two details worth keeping. Longitude spacing is divided by the cosine of the
+    latitude or the grid stretches east to west, and at Reykjavík it would be
+    twice as wide as tall. And the response starts at midnight, so hours already
+    over are trimmed: a forward layer opening on this morning is the complaint
+    it was built to answer. The boundary is strictly greater than an hour ago,
+    because at the top of the hour the previous one is finished and has nothing
+    left to say.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.
