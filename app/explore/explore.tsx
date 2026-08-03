@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 
 import { BottomNav } from "@/components/bottom-nav";
+import { Leaderboard } from "@/components/leaderboard";
 import { WorldCard } from "@/components/world-card";
 import { usePreferences } from "@/components/preferences-provider";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { useTilt } from "@/lib/hooks/use-tilt";
 import { activeLocation } from "@/lib/preferences";
 import type { OnThisDay } from "@/lib/history/on-this-day";
-import type { WorldSnapshot } from "@/lib/world/world";
+import { HOME_CITY_ID, type WorldSnapshot } from "@/lib/world/world";
 
 /**
  * Explore.
@@ -55,7 +56,10 @@ export function Explore() {
     // Fetched together but failing apart: the world board going down must not
     // take the history with it, and neither is worth an error screen.
     Promise.all([
-      fetch("/api/world")
+      fetch(
+        `/api/world?lat=${coordinates.latitude}&lon=${coordinates.longitude}` +
+          `&name=${encodeURIComponent(saved?.name ?? "Your city")}`,
+      )
         .then((response) => (response.ok ? response.json() : null))
         .catch(() => null),
       fetch(`/api/history?lat=${coordinates.latitude}&lon=${coordinates.longitude}`)
@@ -136,7 +140,10 @@ export function Explore() {
 
           {!loading && world.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
-              {world.map((city) => (
+              {/* The user's own city is ranked but not drawn as a climate card:
+                  it is on the home screen already, and a card for it here would
+                  be the same weather twice. */}
+              {world.filter((city) => city.id !== HOME_CITY_ID).map((city) => (
                 <WorldCard
                   key={city.id}
                   city={city}
@@ -149,6 +156,19 @@ export function Explore() {
 
           {!loading && world.length === 0 && (
             <p className="text-sm text-text-dim">Could not reach the world board.</p>
+          )}
+        </section>
+
+        <section
+          className="ww-rise flex flex-col gap-3"
+          style={{ "--rise-delay": "120ms" } as React.CSSProperties}
+        >
+          <h2 className="type-label text-2xs">Where you stand</h2>
+
+          {loading && <div className="ww-shimmer h-64 rounded-card" />}
+
+          {!loading && world.length > 0 && (
+            <Leaderboard cities={world} units={preferences.units} />
           )}
         </section>
       </div>

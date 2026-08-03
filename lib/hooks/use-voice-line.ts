@@ -25,8 +25,9 @@ export function useVoiceLine(
   hourly: HourlyPoint[],
   location: LocationSummary,
   confidence: "high" | "moderate" | "low" | null = null,
+  sunset: number | null = null,
 ): Advice {
-  const digest = buildDigest(current, hourly, location.timeZone, confidence);
+  const digest = buildDigest(current, hourly, location.timeZone, confidence, sunset);
 
   const deterministic: Advice = {
     paragraph: adviceParagraph(
@@ -63,6 +64,7 @@ export function useVoiceLine(
         latitude: location.latitude,
         longitude: location.longitude,
         confidence,
+        sunset,
       }),
     })
       .then((response) => (response.ok ? response.json() : null))

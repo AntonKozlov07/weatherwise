@@ -213,3 +213,61 @@ describe("topAnswers", () => {
     }
   });
 });
+
+/**
+ * Night blindness, pinned.
+ *
+ * The pleasant-weather rules described daylight regardless of the hour, so a
+ * clear evening read "Bright, but keep a layer on" at eleven at night. The
+ * generated copy had the same fault for the same reason: neither was told
+ * whether the sun was up (Decisions Log 112).
+ */
+describe("after dark", () => {
+  const night = (overrides: Partial<CurrentConditions> = {}) =>
+    current({
+      condition: { code: 800, label: "Clear", isDay: false },
+      temperature: 14,
+      ...overrides,
+    });
+
+  it("does not call a clear night bright", () => {
+    const line = voiceLine({
+      current: night(),
+      hourly: hours(steady(14)),
+      timeZone: TZ,
+    });
+
+    expect(line).not.toMatch(/bright/i);
+  });
+
+  it("does not suggest being outside in the middle of the night", () => {
+    const line = voiceLine({
+      current: night({ temperature: 20 }),
+      hourly: hours(steady(20)),
+      timeZone: TZ,
+    });
+
+    expect(line).not.toMatch(/as good as it gets|in the way of being outside/i);
+  });
+
+  // Severity still outranks the hour: a storm at night is a storm.
+  it("still leads with the weather when it matters", () => {
+    const line = voiceLine({
+      current: night({ condition: { code: 200, label: "Thunderstorm", isDay: false } }),
+      hourly: hours(steady(18)),
+      timeZone: TZ,
+    });
+
+    expect(line).toContain("Thunderstorm");
+  });
+
+  it("still describes daylight during the day", () => {
+    const line = voiceLine({
+      current: current({ temperature: 20, condition: { code: 800, label: "Clear", isDay: true } }),
+      hourly: hours(steady(20)),
+      timeZone: TZ,
+    });
+
+    expect(line).toMatch(/as good as it gets/i);
+  });
+});

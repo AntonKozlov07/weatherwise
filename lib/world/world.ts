@@ -1,6 +1,9 @@
 import { wmoToOwm } from "@/lib/weather/openmeteo/wmo";
 import { conditionLabelFor } from "@/lib/weather/openweather/conditions";
 import { cityCoordinates, WORLD_CITIES, type WorldCity } from "@/lib/world/cities";
+
+/** Marks the user's own location among the ranked cities. */
+export const HOME_CITY_ID = "__home__";
 import type { ConditionRef } from "@/lib/weather/types";
 
 /**
@@ -92,8 +95,35 @@ function toSnapshot(city: WorldCity, raw: RawCity): WorldSnapshot | null {
  * a fault here shows nothing rather than an error: losing eight distant cities
  * must never be able to take down the history and facts beside them.
  */
-export async function fetchWorldWeather(): Promise<WorldSnapshot[]> {
-  const { latitudes, longitudes } = cityCoordinates();
+export async function fetchWorldWeather(
+  /**
+   * The user's own location, ranked alongside the rest. Fetched in the same
+   * request from the same vendor: comparing an OpenWeatherMap reading for home
+   * against Open-Meteo readings for everywhere else would put a vendor
+   * difference into the standings and call it weather (Decisions Log 113).
+   */
+  home?: { name: string; latitude: number; longitude: number } | null,
+): Promise<WorldSnapshot[]> {
+  const base = cityCoordinates();
+
+  const cities: WorldCity[] = home
+    ? [
+        ...WORLD_CITIES,
+        {
+          id: HOME_CITY_ID,
+          name: home.name,
+          country: "",
+          latitude: home.latitude,
+          longitude: home.longitude,
+          // Yours is never drawn as a climate card, only ranked, so the tag is
+          // a placeholder rather than a claim about where you live.
+          climate: "temperate" as const,
+        },
+      ]
+    : WORLD_CITIES;
+
+  const latitudes = home ? `${base.latitudes},${home.latitude}` : base.latitudes;
+  const longitudes = home ? `${base.longitudes},${home.longitude}` : base.longitudes;
 
   const url =
     `${FORECAST_API}?latitude=${latitudes}&longitude=${longitudes}` +
@@ -117,7 +147,7 @@ export async function fetchWorldWeather(): Promise<WorldSnapshot[]> {
     // will, but the shape is the vendor's choice and not worth trusting.
     const rows = Array.isArray(payload) ? payload : [payload];
 
-    return WORLD_CITIES.map((city, index) =>
+    return cities.map((city, index) =>
       rows[index] ? toSnapshot(city, rows[index]) : null,
     ).filter((snapshot): snapshot is WorldSnapshot => snapshot !== null);
   } catch {

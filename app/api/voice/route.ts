@@ -76,6 +76,8 @@ type Body = {
   longitude?: number;
   /** Model agreement, computed with the forecast and passed through. */
   confidence?: "high" | "moderate" | "low" | null;
+  /** Epoch millis, so the copy can say how long the light has left. */
+  sunset?: number | null;
 };
 
 async function generate(digest: ReturnType<typeof buildDigest>): Promise<string | null> {
@@ -144,7 +146,13 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: { message: "Missing forecast." } }, { status: 400 });
   }
 
-  const digest = buildDigest(current, hourly, timeZone, body.confidence ?? null);
+  const digest = buildDigest(
+    current,
+    hourly,
+    timeZone,
+    body.confidence ?? null,
+    typeof body.sunset === "number" ? body.sunset : null,
+  );
 
   // The deterministic version is computed first, so there is always something
   // to return and the generated path never has to handle its own failure.
@@ -157,7 +165,13 @@ export async function POST(request: Request): Promise<Response> {
   };
 
   try {
-    const key = `${digestKey(digest, body.latitude ?? 0, body.longitude ?? 0)}|${digest.confidence ?? "-"}`;
+    const key = [
+      digestKey(digest, body.latitude ?? 0, body.longitude ?? 0),
+      digest.confidence ?? "-",
+      // Day and night produce different advice, so they cannot share a cache
+      // entry: the evening would serve the afternoon's suggestion back.
+      digest.period,
+    ].join("|");
 
     const hit = cached(key);
     if (hit) return Response.json(hit);

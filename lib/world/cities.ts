@@ -31,6 +31,16 @@ export const WORLD_CITIES: WorldCity[] = [
   { id: "dubai", name: "Dubai", country: "AE", latitude: 25.2, longitude: 55.27, climate: "desert" },
   { id: "reykjavik", name: "Reykjavík", country: "IS", latitude: 64.15, longitude: -21.94, climate: "polar" },
   { id: "singapore", name: "Singapore", country: "SG", latitude: 1.35, longitude: 103.82, climate: "tropical" },
+  // Added for the ranking. A leaderboard of eight is a list; these widen the
+  // spread so a top twelve is worth ordering (Decisions Log 113).
+  { id: "cairo", name: "Cairo", country: "EG", latitude: 30.04, longitude: 31.24, climate: "desert" },
+  { id: "moscow", name: "Moscow", country: "RU", latitude: 55.76, longitude: 37.62, climate: "temperate" },
+  { id: "rio", name: "Rio de Janeiro", country: "BR", latitude: -22.91, longitude: -43.17, climate: "tropical" },
+  { id: "cape-town", name: "Cape Town", country: "ZA", latitude: -33.92, longitude: 18.42, climate: "temperate" },
+  { id: "mumbai", name: "Mumbai", country: "IN", latitude: 19.08, longitude: 72.88, climate: "tropical" },
+  { id: "mexico-city", name: "Mexico City", country: "MX", latitude: 19.43, longitude: -99.13, climate: "temperate" },
+  { id: "anchorage", name: "Anchorage", country: "US", latitude: 61.22, longitude: -149.9, climate: "polar" },
+  { id: "phoenix", name: "Phoenix", country: "US", latitude: 33.45, longitude: -112.07, climate: "desert" },
 ];
 
 /**

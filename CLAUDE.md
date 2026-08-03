@@ -781,6 +781,33 @@ service worker keeps serving cached assets, and that already caused one round of
     with 4px of padding. The icon is unchanged and the padding does the work, so
     it looks the same and is nearly twice as easy to hit.
 
+112. **Nothing that describes daylight may run without knowing the hour.** The
+    copy suggested a walk at night, and chasing it found the same blindness in
+    three places: the prompt was never told the time of day, the deterministic
+    activity advice had no night branch, and the voice rules described a clear
+    evening as "Bright, but keep a layer on" because they tested temperature and
+    sky and never whether the sun was up. All three are fixed, and the night
+    rules are ordered ahead of the pleasant-weather ones so a clear night cannot
+    fall through to a daylight sentence.
+
+    Day and night are now part of the cache key. Without that the evening would
+    be served the afternoon's suggestion back.
+
+    Em and en dashes are forbidden in the prompt and stripped in the validator.
+    Stripped rather than rejected: one slipping through should not cost a whole
+    paragraph, and the punctuation is a tell.
+
+113. **The world board is also a leaderboard.** A grid says what the weather is
+    in each place; it raises the question of how yours compares and never
+    answers it. Sixteen cities now, ranked twelve at a time by warmth, wind,
+    rain or humidity, with yours below the line when it misses the cut, and
+    highlighted in place when it does not.
+
+    Your city is fetched in the same request from the same vendor as the rest.
+    Ranking an OpenWeatherMap reading for home against Open-Meteo readings for
+    everywhere else would put a vendor difference into the standings and call it
+    weather.
+
 Outstanding:
 
 - **Map rendering is unconfirmed.** Every server-side piece is verified: both tile layers return real PNGs through the proxy, and the basemap is keyless and reachable. Whether MapLibre paints them has never been observed, because the only browser available here runs with `visibilityState: hidden`, so it never composites a frame and never requests overlay tiles. This needs a real screen.

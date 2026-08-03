@@ -45,6 +45,8 @@ type Shape = {
   bucket: string;
   /** Local hour, 0 to 23, at the location. */
   hour: number;
+  /** Light or dark, as the vendor reports it rather than inferred from a clock. */
+  isDay: boolean;
 };
 
 function localHour(time: number, timeZone: string): number {
@@ -96,6 +98,7 @@ function describe(input: VoiceInput): Shape {
     humidity: input.current.humidity,
     bucket: conditionInfo(input.current.condition.code).bucket,
     hour: localHour(input.current.observedAt, input.timeZone),
+    isDay: input.current.condition.isDay,
   };
 }
 
@@ -265,6 +268,22 @@ const RULES: Rule[] = [
   },
 
   // ---- Pleasant ----------------------------------------------------------
+  /*
+    Night comes first among the pleasant conditions. Ordered the other way,
+    "Clear and cool. Bright, but keep a layer on." fired at eleven at night,
+    because the rule only tested temperature and the sky, never whether the sun
+    was up (Decisions Log 112).
+  */
+  {
+    id: "clear-night",
+    when: (s) => s.bucket === "clear" && !s.isDay,
+    say: () => "Clear overhead. Colder than it looks once you are out in it.",
+  },
+  {
+    id: "cloudy-night",
+    when: (s) => !s.isDay && s.wetHours === 0,
+    say: () => "Quiet night, nothing much doing. Dry, at least.",
+  },
   {
     id: "clear-and-mild",
     when: (s) =>
@@ -275,11 +294,6 @@ const RULES: Rule[] = [
     id: "clear-cool",
     when: (s) => s.bucket === "clear" && s.now < 16 && s.wetHours === 0,
     say: () => "Clear and cool. Bright, but keep a layer on.",
-  },
-  {
-    id: "clear-night",
-    when: (s) => s.bucket === "clear" && (s.hour >= 20 || s.hour < 5),
-    say: () => "Clear overnight. Expect it to be colder than it looks.",
   },
   {
     id: "overcast-mild",

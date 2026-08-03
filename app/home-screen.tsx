@@ -67,6 +67,7 @@ function LoadedHome({
     // Model agreement rides into the wording rather than onto the screen as a
     // badge, so a hedged day reads as a hedged sentence (Decisions Log 99).
     bundle.agreement?.confidence ?? null,
+    bundle.astronomy.sunset,
   );
 
   const rows = useMemo(

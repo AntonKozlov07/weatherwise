@@ -45,6 +45,24 @@ export function activityAdvice(digest: VoiceDigest): string {
   const raining = digest.hoursToDry !== null;
   const rainComing = digest.hoursToRain !== null && digest.hoursToRain <= 3;
 
+  /*
+    After dark nothing that needs daylight is worth suggesting. The generated
+    version is told the same thing in its prompt; this is the floor beneath it,
+    and it was recommending a run at midnight for the same reason
+    (Decisions Log 112).
+  */
+  if (!digest.isDay) {
+    if (digest.condition.toLowerCase().includes("thunder")) {
+      return "Stay in tonight, and let the storm pass.";
+    }
+    if (raining) return "A wet night. Nothing outside worth getting soaked for.";
+    if (digest.feelsLike <= 0) return "Cold night. A short walk at most, and wrap up.";
+    if (digest.gustKph >= 45) return "Loud night out there. Better indoors.";
+    if (rainComing) return "Dry for now, but rain overnight. Bring anything in.";
+
+    return "A quiet night for a walk, if you want one.";
+  }
+
   if (digest.condition.toLowerCase().includes("thunder")) {
     return "Indoors today. Nothing outside is worth a storm.";
   }

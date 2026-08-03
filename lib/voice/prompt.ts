@@ -27,6 +27,12 @@ export type VoiceDigest = {
   hoursToDry: number | null;
   wetHours: number;
   heaviestMmH: number;
+  /** Light or dark right now, reported by the vendor rather than inferred. */
+  isDay: boolean;
+  /** Morning, afternoon, evening or night, in the location's own clock. */
+  period: "morning" | "afternoon" | "evening" | "night";
+  /** Hours until it gets dark, or null once it already is. */
+  hoursToDark: number | null;
   /** How far a second, independent model agrees. Null where not compared. */
   confidence: "high" | "moderate" | "low" | null;
 };
@@ -41,11 +47,21 @@ function localHour(time: number, timeZone: string): number {
   );
 }
 
+/** The part of the day, as a person would name it. */
+function periodOf(hour: number): VoiceDigest["period"] {
+  if (hour < 5) return "night";
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  if (hour < 21) return "evening";
+  return "night";
+}
+
 export function buildDigest(
   current: CurrentConditions,
   hourly: HourlyPoint[],
   timeZone: string,
   confidence: VoiceDigest["confidence"] = null,
+  sunset: number | null = null,
 ): VoiceDigest {
   const window_ = hourly.slice(0, 12);
   const temps = window_.map((hour) => hour.temperature);
@@ -75,6 +91,12 @@ export function buildDigest(
       Math.round(window_.reduce((max, hour) => Math.max(max, hour.precipitation), 0) * 10) /
       10,
     confidence,
+    isDay: current.condition.isDay,
+    period: periodOf(localHour(current.observedAt, timeZone)),
+    hoursToDark:
+      sunset !== null && sunset > current.observedAt
+        ? Math.round((sunset - current.observedAt) / 3_600_000)
+        : null,
   };
 }
 
@@ -123,6 +145,8 @@ Exactly three sentences, in this order:
 Voice: a person who knows the area telling you about the day. Dry, specific, a little wry. Never cheerful, never a forecast read aloud.
 
 Rules:
+- The third sentence must fit the time of day you are told. After dark, do not suggest sunbathing, a midday run, or anything needing daylight; talk about the evening, tomorrow morning, or staying in.
+- Never use an em dash or an en dash. Commas, full stops or semicolons only.
 - Use ONLY numbers present in the data. Never state a temperature, time or measurement you were not given.
 - Never invent rain, wind or conditions not in the data.
 - Under 300 characters total. No emoji, no exclamation marks, no greetings.
@@ -133,6 +157,10 @@ Example:
 
 export function userPrompt(digest: VoiceDigest): string {
   const lines = [
+    // Time of day leads, because it governs what the third sentence may
+    // suggest and the model was recommending a midday run at midnight
+    // (Decisions Log 112).
+    `It is ${digest.period} and it is ${digest.isDay ? "light" : "dark"} out.`,
     `Now: ${digest.temperature}C, feels ${digest.feelsLike}C, ${digest.condition}`,
     `Next 12h: high ${digest.high}C, low ${digest.low}C`,
     `Humidity ${digest.humidity}%, wind ${digest.windKph} km/h, gusts ${digest.gustKph} km/h, UV ${digest.uvIndex}`,
@@ -150,6 +178,10 @@ export function userPrompt(digest: VoiceDigest): string {
   // Two independent models disagreeing is worth a hedge in the wording rather
   // than a badge on the screen, so the confidence arrives as a fact about the
   // forecast and the model chooses how to say it (Decisions Log 99).
+  if (digest.hoursToDark !== null) {
+    lines.push(`Dark in about ${digest.hoursToDark}h`);
+  }
+
   if (digest.confidence === "low") {
     lines.push("Note: two forecast models disagree about today. Hedge accordingly.");
   }

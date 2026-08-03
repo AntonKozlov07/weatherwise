@@ -91,6 +91,10 @@ function checkField(raw: string, allowed: Set<number>): string | { reason: strin
   const text = raw
     .trim()
     .replace(/^["'“”]+|["'“”]+$/g, "")
+    // Em and en dashes are stripped rather than rejected. The prompt forbids
+    // them and the model mostly complies, but one slipping through should not
+    // cost the whole paragraph, and the punctuation is a tell (Decisions Log 112).
+    .replace(/\s*[—–]\s*/g, ", ")
     .replace(/(\d)\s*([ap])\.?\s*m\.?/gi, (_m, digit: string, meridiem: string) =>
       `${digit}${meridiem.toUpperCase()}M`,
     )

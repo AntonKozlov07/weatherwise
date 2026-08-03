@@ -581,6 +581,34 @@
     transform: scale(0.985);
   }
 
+  /* ---- Leaderboard ------------------------------------------------------ */
+
+  .ww-rank-row {
+    position: relative;
+  }
+
+  .ww-rank-row::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .ww-rank-row:last-child::after {
+    display: none;
+  }
+
+  /* Your own city, wherever it lands. Tinted rather than outlined, so it reads
+     as belonging to the list rather than as a callout stuck on top of it. */
+  .ww-rank-row[data-home] {
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    border-radius: var(--radius-inner);
+    padding-inline: var(--space-3);
+    margin-inline: calc(var(--space-3) * -1);
+  }
+
   /* ---- Time scrubber ---------------------------------------------------- */
 
   .ww-scrub-track {

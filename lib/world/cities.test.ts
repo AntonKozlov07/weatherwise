@@ -9,9 +9,22 @@ const TEXT = "#edeae4";
 const ON_BAND_DIM = "#dcd9d3";
 
 describe("world cities", () => {
-  it("has eight, each with a distinct id", () => {
-    expect(WORLD_CITIES).toHaveLength(8);
-    expect(new Set(WORLD_CITIES.map((city) => city.id)).size).toBe(8);
+  /**
+   * The count is not pinned: the list grew from eight to sixteen when the
+   * ranking arrived, and a leaderboard wants more than it can show. What must
+   * hold is that ids are unique, since the grid and the standings both key on
+   * them, and that there are enough to fill a top twelve.
+   */
+  it("has enough cities for a ranking, each with a distinct id", () => {
+    expect(WORLD_CITIES.length).toBeGreaterThanOrEqual(12);
+    expect(new Set(WORLD_CITIES.map((city) => city.id)).size).toBe(
+      WORLD_CITIES.length,
+    );
+  });
+
+  // The home city is appended under a reserved id, so no real city may claim it.
+  it("leaves the reserved home id free", () => {
+    expect(WORLD_CITIES.some((city) => city.id === "__home__")).toBe(false);
   });
 
   it("spans both hemispheres and several climates", () => {
@@ -22,9 +35,14 @@ describe("world cities", () => {
   it("builds one query covering every city, in order", () => {
     const { latitudes, longitudes } = cityCoordinates();
 
-    expect(latitudes.split(",")).toHaveLength(8);
-    expect(longitudes.split(",")).toHaveLength(8);
+    // The response is matched to cities by position, so a mismatch here would
+    // silently label every city with another city's weather.
+    expect(latitudes.split(",")).toHaveLength(WORLD_CITIES.length);
+    expect(longitudes.split(",")).toHaveLength(WORLD_CITIES.length);
     expect(latitudes.split(",")[0]).toBe(String(WORLD_CITIES[0].latitude));
+    expect(longitudes.split(",").at(-1)).toBe(
+      String(WORLD_CITIES.at(-1)!.longitude),
+    );
   });
 
   /**

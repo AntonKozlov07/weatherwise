@@ -18,7 +18,7 @@
 
 // v3: the brand SVGs were re-cropped. Their URLs are stable, so a cache-first
 // entry kept serving the old artwork on every device that had already visited.
-const CACHE_VERSION = "v18";
+const CACHE_VERSION = "v19";
 const SHELL_CACHE = `weatherwise-shell-${CACHE_VERSION}`;
 const DATA_CACHE = `weatherwise-data-${CACHE_VERSION}`;
 
